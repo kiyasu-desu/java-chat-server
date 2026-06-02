@@ -10,7 +10,7 @@ import u3123004589.common.Constant;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Message {
+public class Order {
     //命令
     private Constant.OrderType order;
     //数据
