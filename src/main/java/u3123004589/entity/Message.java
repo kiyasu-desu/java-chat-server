@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import u3123004589.common.Constant;
 
 @Data
 @Builder
@@ -11,7 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Message {
     //命令
-    private String order;
+    private Constant.OrderType order;
     //数据
     private String content;
 }
