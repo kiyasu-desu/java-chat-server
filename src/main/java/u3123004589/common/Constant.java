@@ -31,4 +31,10 @@ public class Constant {
 
     }
 
+    //登录状态
+    public enum UserStatus {
+        ONLINE, OFFLINE
+    }
+
+
 }
