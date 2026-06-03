@@ -32,13 +32,30 @@ public class Constant {
     }
 
     //登录状态
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Getter
     public enum UserStatus {
-        ONLINE, OFFLINE
+        ONLINE(0), OFFLINE(1);
+
+        private int status;
+
+        public static UserStatus fromValue(int v) {
+            for (UserStatus s : values()) {
+                if (s.status == v) return s;
+            }
+            throw new IllegalArgumentException(String.valueOf(v));
+        }
     }
 
     //结果数据
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Getter
     public enum ResultType {
-        SUCCESS, FAIL
+        SUCCESS(0), FAIL(1);
+
+        private int result;
     }
 
 }
