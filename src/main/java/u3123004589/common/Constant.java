@@ -36,5 +36,9 @@ public class Constant {
         ONLINE, OFFLINE
     }
 
+    //结果数据
+    public enum ResultType {
+        SUCCESS, FAIL
+    }
 
 }
