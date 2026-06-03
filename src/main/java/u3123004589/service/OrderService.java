@@ -1,0 +1,8 @@
+package u3123004589.service;
+
+
+import u3123004589.entity.Order;
+
+public interface OrderService {
+    Order SplitOrder(String order);
+}
