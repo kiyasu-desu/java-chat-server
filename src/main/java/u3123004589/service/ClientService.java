@@ -108,12 +108,9 @@ public class ClientService implements Runnable {
             case FIND_REQ -> {
                 response.setOrderType(Constant.OrderType.FIND_RES);
                 List<String> ids = search();
+                result.setResult(Constant.ResultType.SUCCESS);
                 if (ids != null) {
-                    result.setResult(Constant.ResultType.SUCCESS);
-                    result.setInfo(String.join(",", ids));
-                } else {
-                    result.setResult(Constant.ResultType.SUCCESS);
-                    result.setInfo("当前没有在线用户");
+                    result.setInfo(ids.isEmpty() ? "当前没有在线用户" : String.join(",", ids));
                 }
             }
             case SEND_MSG_REQ -> {
