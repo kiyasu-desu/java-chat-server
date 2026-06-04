@@ -10,7 +10,7 @@ import java.util.Arrays;
 public class OrderServiceImpl implements OrderService {
 
     @Override
-    public Order SplitOrder(String order) {
+    public Order splitOrder(String order) {
         String[] orderSplit = order.split("\\s+", 2);
         String orderId = orderSplit[0];
         String content = orderSplit.length > 1 ? orderSplit[1] : "";
