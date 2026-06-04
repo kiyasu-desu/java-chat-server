@@ -23,7 +23,7 @@ public class UserServiceImpl implements UserService {
         switch (order.getOrder()) {
             case REGISTER_REQ -> {
                 response.setOrderType(Constant.OrderType.REGISTER_RES);
-                String[] params = order.getContent().split(" ");
+                String[] params = order.getContent().split(",");
                 if (params.length != 2) {
                     log.warn("注册请求参数错误: {}", order.getContent());
                     result.setResult(Constant.ResultType.FAIL);
@@ -34,7 +34,7 @@ public class UserServiceImpl implements UserService {
             }
             case LOGIN_REQ -> {
                 response.setOrderType(Constant.OrderType.LOGIN_RES);
-                String[] params = order.getContent().split(" ");
+                String[] params = order.getContent().split(",");
                 if (params.length != 2) {
                     log.warn("登录请求参数错误: {}", order.getContent());
                     result.setResult(Constant.ResultType.FAIL);
@@ -199,6 +199,8 @@ public class UserServiceImpl implements UserService {
             } else {
 
                 //todo 发消息
+
+
 
                 log.info("{} 发送消息给 {}", message.getSrcId(), message.getDstId());
 
