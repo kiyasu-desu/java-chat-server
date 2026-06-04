@@ -13,6 +13,9 @@ public interface UserDao {
     //按id查找
     User getUserById(@Param("id") String id);
 
+    //登录验证
+    User loginCheck(@Param("id") String id, @Param("password") String password);
+
     //修改登录状态
     int updateLoginStatus(@Param("id") String id, @Param("status") Constant.UserStatus status);
 }
