@@ -21,7 +21,13 @@
         where id = #{id}
     </select>
     
-    <select id="loginCheck">
+    <select id="getLoginStatus" parameterType="java.lang.String" resultType="u3123004589.common.Constant$UserStatus">
+        select status
+        from `user`
+        where id = #{id}
+    </select>
+    
+    <select id="loginCheck" resultMap="UserResultMap">
         select id, password, status
         from `user`
         where id = #{id} and password = #{password}
