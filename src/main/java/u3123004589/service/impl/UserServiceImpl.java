@@ -44,7 +44,7 @@ public class UserServiceImpl implements UserService {
             return result;
 
         } catch (Exception e) {
-            log.error("{}注册失败: {}", id, e.getMessage());
+            log.error("{} 注册失败: {}", id, e.getMessage());
             result.setResult(Constant.ResultType.FAIL);
             result.setInfo(e.getMessage());
             return result;
@@ -65,7 +65,7 @@ public class UserServiceImpl implements UserService {
                 log.warn("{} 登录失败: 用户已在线", id);
                 result.setResult(Constant.ResultType.FAIL);
                 result.setInfo("用户已在线");
-            }  else {
+            } else {
                 userDao.updateLoginStatus(id, Constant.UserStatus.ONLINE);
                 log.info("{} 登录成功", id);
                 result.setResult(Constant.ResultType.SUCCESS);
@@ -82,8 +82,27 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Result logout(String id) {
-        //todo 登出
-        return null;
+        Result result = new Result();
+        try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
+            UserDao userDao = session.getMapper(UserDao.class);
+
+            if (userDao.getLoginStatus(id) == Constant.UserStatus.OFFLINE) {
+                log.warn("{} 登出失败: 用户已离线", id);
+                result.setResult(Constant.ResultType.FAIL);
+                result.setInfo("用户已离线");
+            } else {
+                userDao.updateLoginStatus(id, Constant.UserStatus.OFFLINE);
+                log.info("{} 登出成功", id);
+                result.setResult(Constant.ResultType.SUCCESS);
+            }
+            return result;
+
+        } catch (Exception e) {
+            log.error("{} 登出失败: {}", id, e.getMessage());
+            result.setResult(Constant.ResultType.FAIL);
+            result.setInfo(e.getMessage());
+            return result;
+        }
     }
 
     @Override
