@@ -21,6 +21,12 @@
         where id = #{id}
     </select>
 
+    <select id="getOnlineIds" resultType="java.lang.String">
+        select id
+        from `user`
+        where status = 'ONLINE'
+    </select>
+
     <select id="getLoginStatus" parameterType="java.lang.String" resultType="u3123004589.common.Constant$UserStatus">
         select status
         from `user`

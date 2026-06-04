@@ -11,6 +11,8 @@ import u3123004589.service.UserService;
 import u3123004589.util.Md5Util;
 import u3123004589.util.MyBatisUtil;
 
+import java.util.List;
+
 @Slf4j
 public class UserServiceImpl implements UserService {
 
@@ -106,9 +108,22 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Result search() {
-        //todo 搜索
-        return null;
+    public List<String> search() {
+        try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
+            UserDao userDao = session.getMapper(UserDao.class);
+
+            List<String> ids = userDao.getOnlineIds();
+            if (ids != null && !ids.isEmpty()) {
+                log.info("在线用户列表: {}", ids);
+                return ids;
+            } else {
+                log.info("当前没有在线用户");
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("查询在线用户列表失败: {}", e.getMessage());
+            return null;
+        }
     }
 
     @Override

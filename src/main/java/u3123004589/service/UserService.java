@@ -4,6 +4,8 @@ import u3123004589.common.Constant;
 import u3123004589.entity.Message;
 import u3123004589.entity.Result;
 
+import java.util.List;
+
 public interface UserService {
     Result register(String id, String password);
 
@@ -11,7 +13,7 @@ public interface UserService {
 
     Result logout(String id);
 
-    Result search();
+    List<String> search();
 
     Result sendMessage(Message message);
 }
