@@ -80,7 +80,7 @@ public class ClientService implements Runnable {
                     result.setResult(Constant.ResultType.FAIL);
                     result.setInfo("注册请求参数错误");
                 } else {
-                    result = register(params[0], params[1]);
+                    result = register(params[0].trim(), params[1].trim());
                 }
             }
             case LOGIN_REQ -> {
@@ -91,7 +91,7 @@ public class ClientService implements Runnable {
                     result.setResult(Constant.ResultType.FAIL);
                     result.setInfo("登录请求参数错误");
                 } else {
-                    result = login(params[0], params[1]);
+                    result = login(params[0].trim(), params[1].trim());
                 }
             }
             case LOGOUT_REQ -> {
