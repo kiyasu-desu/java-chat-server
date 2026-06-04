@@ -13,4 +13,9 @@ import u3123004589.common.Constant;
 public class Response {
     private Constant.OrderType orderType;
     private Result info;
+
+    @Override
+    public String toString() {
+        return orderType.getOrderNo() + " " + info.getInfo();
+    }
 }
