@@ -10,14 +10,14 @@ import u3123004589.service.UserService;
 import u3123004589.util.Md5Util;
 import u3123004589.util.MyBatisUtil;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 
 @Slf4j
 public class UserServiceImpl implements UserService {
 
     @Override
-    public Response runOrder(Order order) {
+    public Response runOrder(Order order, BlockingQueue<Message> sendQueue) {
         Response response = new Response();
         Result result = new Result();
         switch (order.getOrder()) {
@@ -74,7 +74,7 @@ public class UserServiceImpl implements UserService {
                     result.setResult(Constant.ResultType.FAIL);
                     result.setInfo("发送消息请求参数错误");
                 } else {
-                    result = sendMessage(message);
+                    result = sendMessage(message, sendQueue);
                 }
             }
         }
@@ -188,7 +188,7 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    private Result sendMessage(Message message) {
+    private Result sendMessage(Message message, BlockingQueue<Message> sendQueue) {
         Result result = new Result();
         try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
             UserDao userDao = session.getMapper(UserDao.class);
@@ -197,13 +197,8 @@ public class UserServiceImpl implements UserService {
                 result.setResult(Constant.ResultType.FAIL);
                 result.setInfo("接收者离线");
             } else {
-
-                //todo 发消息
-
-
-
+                sendQueue.put(message);
                 log.info("{} 发送消息给 {}", message.getSrcId(), message.getDstId());
-
             }
             return result;
 
