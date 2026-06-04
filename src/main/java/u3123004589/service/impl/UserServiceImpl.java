@@ -33,6 +33,7 @@ public class UserServiceImpl implements UserService {
                 }
             }
             case LOGIN_REQ -> {
+                response.setOrderType(Constant.OrderType.LOGIN_RES);
                 String[] params = order.getContent().split(" ");
                 if (params.length != 2) {
                     log.warn("登录请求参数错误: {}", order.getContent());
@@ -43,6 +44,7 @@ public class UserServiceImpl implements UserService {
                 }
             }
             case LOGOUT_REQ -> {
+                response.setOrderType(Constant.OrderType.LOGOUT_RES);
                 String id = order.getContent();
                 if (id == null || id.isEmpty()) {
                     log.warn("登出请求参数错误: {}", order.getContent());
@@ -53,6 +55,7 @@ public class UserServiceImpl implements UserService {
                 }
             }
             case FIND_REQ -> {
+                response.setOrderType(Constant.OrderType.FIND_RES);
                 List<String> ids = search();
                 if (ids != null) {
                     result.setResult(Constant.ResultType.SUCCESS);
@@ -63,6 +66,7 @@ public class UserServiceImpl implements UserService {
                 }
             }
             case SEND_MSG_REQ -> {
+                response.setOrderType(Constant.OrderType.NO_MEANS_REQ);
                 MessageService messageService = new MessageServiceImpl();
                 Message message = messageService.splitMessage(order.getContent());
                 if (null == message) {
