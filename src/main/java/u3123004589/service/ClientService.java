@@ -223,13 +223,7 @@ public class ClientService implements Runnable {
             UserDao userDao = session.getMapper(UserDao.class);
 
             List<String> ids = userDao.getOnlineIds();
-            if (ids != null && !ids.isEmpty()) {
-                log.info("在线用户列表: {}", ids);
-                return ids;
-            } else {
-                log.info("当前没有在线用户");
-                return null;
-            }
+            return ids == null ? List.of() : ids;
         } catch (Exception e) {
             log.error("查询在线用户列表失败: {}", e.getMessage());
             return null;
