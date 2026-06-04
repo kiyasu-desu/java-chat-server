@@ -2,15 +2,16 @@ package u3123004589.service;
 
 import u3123004589.common.Constant;
 import u3123004589.entity.Message;
+import u3123004589.entity.Result;
 
 public interface UserService {
-    Constant.ResultType register(String id, String password);
+    Result register(String id, String password);
 
-    Constant.ResultType login(String id, String password);
+    Result login(String id, String password);
 
-    Constant.ResultType logout(String id);
+    Result logout(String id);
 
-    Constant.ResultType search();
+    Result search();
 
-    Constant.ResultType sendMessage(Message message);
+    Result sendMessage(Message message);
 }

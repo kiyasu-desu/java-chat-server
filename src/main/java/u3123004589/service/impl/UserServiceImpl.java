@@ -5,6 +5,7 @@ import org.apache.ibatis.session.SqlSession;
 import u3123004589.common.Constant;
 import u3123004589.dao.UserDao;
 import u3123004589.entity.Message;
+import u3123004589.entity.Result;
 import u3123004589.entity.User;
 import u3123004589.service.UserService;
 import u3123004589.util.Md5Util;
@@ -14,13 +15,16 @@ import u3123004589.util.MyBatisUtil;
 public class UserServiceImpl implements UserService {
 
     @Override
-    public Constant.ResultType register(String id, String password) {
+    public Result register(String id, String password) {
+        Result result = new Result();
         try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
             UserDao userDao = session.getMapper(UserDao.class);
 
             if (userDao.getUserById(id) != null) {
                 log.warn("{} 注册失败: 用户ID已存在", id);
-                return Constant.ResultType.FAIL;
+                result.setResult(Constant.ResultType.FAIL);
+                result.setInfo("用户ID已存在");
+                return result;
             }
 
             User user = User.builder()
@@ -31,35 +35,60 @@ public class UserServiceImpl implements UserService {
 
             if (1 == userDao.insertUser(user)) {
                 log.info("{} 注册成功", id);
-                return Constant.ResultType.SUCCESS;
+                result.setResult(Constant.ResultType.SUCCESS);
             } else {
                 log.warn("{} 注册失败: 数据库插入失败", id);
-                return Constant.ResultType.FAIL;
+                result.setResult(Constant.ResultType.FAIL);
+                result.setInfo("数据库插入失败");
             }
+            return result;
 
         } catch (Exception e) {
             log.error("{}注册失败: {}", id, e.getMessage());
-            return Constant.ResultType.FAIL;
+            result.setResult(Constant.ResultType.FAIL);
+            result.setInfo(e.getMessage());
+            return result;
         }
     }
 
     @Override
-    public Constant.ResultType login(String id, String password) {
+    public Result login(String id, String password) {
+        Result result = new Result();
+        try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
+            UserDao userDao = session.getMapper(UserDao.class);
+
+            if (userDao.getUserById(id) == null) {
+                log.warn("{} 登录失败: 用户ID不存在", id);
+                result.setResult(Constant.ResultType.FAIL);
+                result.setInfo("用户ID不存在");
+                return result;
+            } else if (!userDao.getUserById(id).getPassword().equals(Md5Util.md5(password))) {
+                log.warn("{} 登录失败: 密码错误", id);
+                result.setResult(Constant.ResultType.FAIL);
+                result.setInfo("密码错误");
+                return result;
+            }
+
+
+        }
         return null;
     }
 
     @Override
-    public Constant.ResultType logout(String id) {
+    public Result logout(String id) {
+        //todo 登出
         return null;
     }
 
     @Override
-    public Constant.ResultType search() {
+    public Result search() {
+        //todo 搜索
         return null;
     }
 
     @Override
-    public Constant.ResultType sendMessage(Message message) {
+    public Result sendMessage(Message message) {
+        //todo 发消息
         return null;
     }
 }
