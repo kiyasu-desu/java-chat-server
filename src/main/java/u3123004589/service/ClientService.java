@@ -1,23 +1,74 @@
-package u3123004589.service.impl;
+package u3123004589.service;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.session.SqlSession;
 import u3123004589.common.Constant;
 import u3123004589.dao.UserDao;
 import u3123004589.entity.*;
-import u3123004589.service.MessageService;
-import u3123004589.service.UserService;
+import u3123004589.service.impl.MessageServiceImpl;
+import u3123004589.service.impl.OrderServiceImpl;
 import u3123004589.util.Md5Util;
 import u3123004589.util.MyBatisUtil;
+import u3123004589.util.OnlineRegistryUtil;
 
+import java.io.*;
+import java.net.Socket;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 
 @Slf4j
-public class UserServiceImpl implements UserService {
+public class ClientService implements Runnable {
+    private final Socket client;
+    private final BlockingQueue<Message> sendQueue; // 生产者队列
+    private final OnlineRegistryUtil registry;
+    private final PrintWriter out; // 注意线程安全：对 out 的写入在 send() 中 synchronized
 
+
+    public ClientService(Socket client, BlockingQueue<Message> sendQueue, OnlineRegistryUtil registry) throws IOException {
+        this.client = client;
+        this.sendQueue = sendQueue;
+        this.registry = registry;
+        this.out = new PrintWriter(new OutputStreamWriter(client.getOutputStream()), true);
+    }
+
+    public synchronized boolean send(String text) {
+        try {
+            out.println(text);
+            out.flush();
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    @SneakyThrows
     @Override
-    public Response runOrder(Order order, BlockingQueue<Message> sendQueue) {
+    public void run() {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()))) {
+
+            out.println("这里是3123004589的聊天室");
+
+            while (true) {
+                String inputLine = br.readLine();
+                OrderService orderService = new OrderServiceImpl();
+                Order order = orderService.splitOrder(inputLine);
+
+                Response response = runOrder(order, sendQueue);
+                out.println(response);
+                if (response.getOrderType() == Constant.OrderType.LOGOUT_RES) {
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            client.close();
+        }
+    }
+
+    private Response runOrder(Order order, BlockingQueue<Message> sendQueue) {
         Response response = new Response();
         Result result = new Result();
         switch (order.getOrder()) {
@@ -209,4 +260,6 @@ public class UserServiceImpl implements UserService {
             return result;
         }
     }
+
+
 }
