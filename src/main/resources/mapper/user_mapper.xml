@@ -24,7 +24,7 @@
     <select id="getOnlineIds" resultType="java.lang.String">
         select id
         from `user`
-        where status = 'ONLINE'
+        where status = '0'
     </select>
 
     <select id="getLoginStatus" parameterType="java.lang.String" resultType="u3123004589.common.Constant$UserStatus">
