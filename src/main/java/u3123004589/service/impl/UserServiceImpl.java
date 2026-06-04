@@ -57,21 +57,27 @@ public class UserServiceImpl implements UserService {
         try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
             UserDao userDao = session.getMapper(UserDao.class);
 
-            if (userDao.getUserById(id) == null) {
-                log.warn("{} 登录失败: 用户ID不存在", id);
+            if (userDao.loginCheck(id, Md5Util.md5(password)) == null) {
+                log.warn("{} 登录失败: 用户ID或密码错误", id);
                 result.setResult(Constant.ResultType.FAIL);
-                result.setInfo("用户ID不存在");
-                return result;
-            } else if (!userDao.getUserById(id).getPassword().equals(Md5Util.md5(password))) {
-                log.warn("{} 登录失败: 密码错误", id);
+                result.setInfo("用户ID或密码错误");
+            } else if (userDao.getLoginStatus(id) == Constant.UserStatus.ONLINE) {
+                log.warn("{} 登录失败: 用户已在线", id);
                 result.setResult(Constant.ResultType.FAIL);
-                result.setInfo("密码错误");
-                return result;
+                result.setInfo("用户已在线");
+            }  else {
+                userDao.updateLoginStatus(id, Constant.UserStatus.ONLINE);
+                log.info("{} 登录成功", id);
+                result.setResult(Constant.ResultType.SUCCESS);
             }
+            return result;
 
-
+        } catch (Exception e) {
+            log.error("{}登录失败: {}", id, e.getMessage());
+            result.setResult(Constant.ResultType.FAIL);
+            result.setInfo(e.getMessage());
+            return result;
         }
-        return null;
     }
 
     @Override
