@@ -56,6 +56,12 @@ public class Constant {
         SUCCESS(0), FAIL(1);
 
         private int result;
+
+        @Override
+        public String toString() {
+            if (result == 0) return "SUCCESS";
+            return "FAIL";
+        }
     }
 
 }

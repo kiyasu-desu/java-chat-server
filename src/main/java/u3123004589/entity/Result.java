@@ -18,4 +18,15 @@ public class Result {
     private Constant.ResultType result;
     //附加消息
     private String info;
+
+    @Override
+    public String toString() {
+
+        if (result == Constant.ResultType.SUCCESS && info != null) {
+            return result.toString();
+        } else {
+            return result + " " + info;
+        }
+
+    }
 }
