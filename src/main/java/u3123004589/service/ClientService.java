@@ -293,6 +293,14 @@ public class ClientService implements Runnable {
 
     private Result sendMessage(Message message) {
         Result result = new Result();
+
+        if (!message.getSrcId().equals(userId)) {
+            log.warn("{} 发送消息失败: 消息源ID {} 不匹配当前登录用户 {}", message.getSrcId(), message.getSrcId(), userId);
+            result.setResult(Constant.ResultType.FAIL);
+            result.setInfo("消息源ID不匹配当前登录用户");
+            return result;
+        }
+
         try {
             if (registry.isOnline(message.getDstId())) {
                 sendQueue.put(message);
