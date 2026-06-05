@@ -21,8 +21,9 @@ import java.util.concurrent.BlockingQueue;
 public class ClientService implements Runnable {
     private final Socket client;
     private final BlockingQueue<Message> sendQueue; // 生产者队列
+    private String userId;
     private final OnlineRegistryUtil registry;
-    private final PrintWriter out; // 注意线程安全：对 out 的写入在 send() 中 synchronized
+    private final PrintWriter out;
 
 
     public ClientService(Socket client, BlockingQueue<Message> sendQueue, OnlineRegistryUtil registry) throws IOException {
@@ -52,10 +53,19 @@ public class ClientService implements Runnable {
 
             while (true) {
                 String inputLine = br.readLine();
+                if (inputLine == null) {
+                    log.info("客户端 {} 连接已关闭", client.getRemoteSocketAddress());
+                    break;
+                }
+
                 OrderService orderService = new OrderServiceImpl();
                 Order order = orderService.splitOrder(inputLine);
+                if (order == null) {
+                    out.println(Constant.OrderType.NO_MEANS_REQ + "，命令格式错误");
+                    continue;
+                }
 
-                Response response = runOrder(order, sendQueue);
+                Response response = runOrder(order);
                 out.println(response);
                 if (response.getOrderType() == Constant.OrderType.LOGOUT_RES) {
                     break;
@@ -64,13 +74,31 @@ public class ClientService implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            client.close();
+            if (userId != null) {
+                registry.unregister(userId);
+                try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
+                    UserDao userDao = session.getMapper(UserDao.class);
+                    userDao.updateLoginStatus(userId, Constant.UserStatus.OFFLINE);
+                } catch (Exception e) {
+                    log.error("{} 离线失败: {}", userId, e.getMessage());
+                }
+            }
         }
     }
 
-    private Response runOrder(Order order, BlockingQueue<Message> sendQueue) {
+    private Response runOrder(Order order) {
         Response response = new Response();
         Result result = new Result();
+
+        if (order == null || order.getOrder() == null) {
+            log.error("命令解析错误: {}", order);
+            response.setOrderType(Constant.OrderType.NO_MEANS_REQ);
+            result.setResult(Constant.ResultType.FAIL);
+            result.setInfo("命令解析错误");
+            response.setInfo(result);
+            return response;
+        }
+
         switch (order.getOrder()) {
             case REGISTER_REQ -> {
                 response.setOrderType(Constant.OrderType.REGISTER_RES);
@@ -122,7 +150,7 @@ public class ClientService implements Runnable {
                     result.setResult(Constant.ResultType.FAIL);
                     result.setInfo("发送消息请求参数错误");
                 } else {
-                    result = sendMessage(message, sendQueue);
+                    result = sendMessage(message);
                 }
             }
         }
@@ -232,7 +260,7 @@ public class ClientService implements Runnable {
         }
     }
 
-    private Result sendMessage(Message message, BlockingQueue<Message> sendQueue) {
+    private Result sendMessage(Message message) {
         Result result = new Result();
         try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
             UserDao userDao = session.getMapper(UserDao.class);
