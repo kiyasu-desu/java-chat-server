@@ -9,13 +9,29 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Order splitOrder(String order) {
+        if (order == null || order.isEmpty()) {
+            return null;
+        }
+
         String[] orderSplit = order.split(",", 2);
-        String orderId = orderSplit[0];
+        String orderId = orderSplit[0].trim();
+        if (orderId.isEmpty()) {
+            return null;
+        }
+
         String content = orderSplit.length > 1 ? orderSplit[1] : "";
 
-        Order order1 = new Order();
         try {
-            Constant.OrderType orderType = Constant.OrderType.valueOf(orderId);
+            Constant.OrderType orderType = null;
+
+            //匹配命令码
+            for (Constant.OrderType type : Constant.OrderType.values()) {
+                if (type.getOrderNo().equals(orderId)) {
+                    orderType = type;
+                    break;
+                }
+            }
+            Order order1 = new Order();
             order1.setOrder(orderType);
             order1.setContent(content);
             return order1;
