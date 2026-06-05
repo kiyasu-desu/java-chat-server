@@ -1,6 +1,5 @@
 package u3123004589.service;
 
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.session.SqlSession;
 import u3123004589.common.Constant;
@@ -25,7 +24,6 @@ public class ClientService implements Runnable {
     private final OnlineRegistryUtil registry;
     private final PrintWriter out;
 
-
     public ClientService(Socket client, BlockingQueue<Message> sendQueue, OnlineRegistryUtil registry) throws IOException {
         this.client = client;
         this.sendQueue = sendQueue;
@@ -39,12 +37,11 @@ public class ClientService implements Runnable {
             out.flush();
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("发送消息失败: {}", e.getMessage());
             return false;
         }
     }
 
-    @SneakyThrows
     @Override
     public void run() {
         try (BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()))) {
@@ -72,10 +69,15 @@ public class ClientService implements Runnable {
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("处理客户端 {} 的请求时发生错误: {}", client.getRemoteSocketAddress(), e.getMessage());
         } finally {
             if (userId != null) {
                 registry.unregister(userId);
+            }
+            try {
+                client.close();
+            } catch (IOException e) {
+                log.error("关闭客户端 {} 连接时发生错误: {}", client.getRemoteSocketAddress(), e.getMessage());
             }
         }
     }
@@ -270,6 +272,4 @@ public class ClientService implements Runnable {
             return result;
         }
     }
-
-
 }
