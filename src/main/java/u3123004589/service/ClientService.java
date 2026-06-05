@@ -76,12 +76,6 @@ public class ClientService implements Runnable {
         } finally {
             if (userId != null) {
                 registry.unregister(userId);
-                try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
-                    UserDao userDao = session.getMapper(UserDao.class);
-                    userDao.updateLoginStatus(userId, Constant.UserStatus.OFFLINE);
-                } catch (Exception e) {
-                    log.error("{} 离线失败: {}", userId, e.getMessage());
-                }
             }
         }
     }
@@ -173,7 +167,6 @@ public class ClientService implements Runnable {
             User user = User.builder()
                     .id(id)
                     .password(Md5Util.md5(password))
-                    .status(Constant.UserStatus.OFFLINE)
                     .build();
 
             if (1 == userDao.insertUser(user)) {
@@ -203,12 +196,11 @@ public class ClientService implements Runnable {
                 log.warn("{} 登录失败: 用户ID或密码错误", id);
                 result.setResult(Constant.ResultType.FAIL);
                 result.setInfo("用户ID或密码错误");
-            } else if (userDao.getLoginStatus(id) == Constant.UserStatus.ONLINE) {
+            } else if (registry.isOnline(id)) {
                 log.warn("{} 登录失败: 用户已在线", id);
                 result.setResult(Constant.ResultType.FAIL);
                 result.setInfo("用户已在线");
             } else {
-                userDao.updateLoginStatus(id, Constant.UserStatus.ONLINE);
                 userId = id;
                 registry.register(id, this);
                 log.info("{} 登录成功", id);
@@ -226,15 +218,14 @@ public class ClientService implements Runnable {
 
     private Result logout(String id) {
         Result result = new Result();
-        try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
-            UserDao userDao = session.getMapper(UserDao.class);
+        try {
 
-            if (userDao.getLoginStatus(id) == Constant.UserStatus.OFFLINE) {
+            if (!registry.isOnline(id)) {
                 log.warn("{} 登出失败: 用户已离线", id);
                 result.setResult(Constant.ResultType.FAIL);
                 result.setInfo("用户已离线");
             } else {
-                userDao.updateLoginStatus(id, Constant.UserStatus.OFFLINE);
+                registry.unregister(id);
                 log.info("{} 登出成功", id);
                 result.setResult(Constant.ResultType.SUCCESS);
             }
@@ -249,10 +240,9 @@ public class ClientService implements Runnable {
     }
 
     private List<String> search() {
-        try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
-            UserDao userDao = session.getMapper(UserDao.class);
+        try {
 
-            List<String> ids = userDao.getOnlineIds();
+            List<String> ids = registry.getOnlineIds();
             return ids == null ? List.of() : ids;
         } catch (Exception e) {
             log.error("查询在线用户列表失败: {}", e.getMessage());
@@ -262,9 +252,8 @@ public class ClientService implements Runnable {
 
     private Result sendMessage(Message message) {
         Result result = new Result();
-        try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
-            UserDao userDao = session.getMapper(UserDao.class);
-            if (userDao.getLoginStatus(message.getDstId()) == Constant.UserStatus.OFFLINE) {
+        try {
+            if (registry.isOnline(message.getDstId())) {
                 log.warn("{} 发送消息失败: 接收者 {} 离线", message.getSrcId(), message.getDstId());
                 result.setResult(Constant.ResultType.FAIL);
                 result.setInfo("接收者离线");
