@@ -181,6 +181,8 @@ public class ClientService implements Runnable {
                 result.setInfo("用户已在线");
             } else {
                 userDao.updateLoginStatus(id, Constant.UserStatus.ONLINE);
+                userId = id;
+                registry.register(id, this);
                 log.info("{} 登录成功", id);
                 result.setResult(Constant.ResultType.SUCCESS);
             }
