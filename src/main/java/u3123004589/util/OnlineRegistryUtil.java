@@ -2,6 +2,8 @@ package u3123004589.util;
 
 import u3123004589.service.ClientService;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -24,5 +26,9 @@ public class OnlineRegistryUtil {
 
     public boolean isOnline(String id) {
         return map.containsKey(id);
+    }
+
+    public List<String> getOnlineIds() {
+        return new ArrayList<>(map.keySet());
     }
 }
