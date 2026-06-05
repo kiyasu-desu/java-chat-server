@@ -19,7 +19,7 @@ import java.util.concurrent.BlockingQueue;
 @Slf4j
 public class ClientService implements Runnable {
     private final Socket client;
-    private final BlockingQueue<Message> sendQueue; // 生产者队列
+    private final BlockingQueue<Message> sendQueue; //发送消息队列
     private String userId;
     private final OnlineRegistryUtil registry;
     private final PrintWriter out;
@@ -46,7 +46,9 @@ public class ClientService implements Runnable {
     public void run() {
         try (BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()))) {
 
-            out.println("这里是3123004589的聊天室");
+            out.println("这里是3123004589的聊天室，输入回车继续...");
+            br.readLine();
+            out.println("请输入命令：");
 
             while (true) {
                 String inputLine = br.readLine();
@@ -58,13 +60,13 @@ public class ClientService implements Runnable {
                 OrderService orderService = new OrderServiceImpl();
                 Order order = orderService.splitOrder(inputLine);
                 if (order == null) {
-                    out.println(Constant.OrderType.NO_MEANS_REQ + "，命令格式错误");
+                    out.println(Constant.ServerOrder.NO_MEANS_REQ + "，命令格式错误");
                     continue;
                 }
 
                 Response response = runOrder(order);
                 out.println(response);
-                if (response.getOrderType() == Constant.OrderType.LOGOUT_RES) {
+                if (response.getOrderType() == Constant.ServerOrder.LOGOUT_RES) {
                     break;
                 }
             }
@@ -88,7 +90,7 @@ public class ClientService implements Runnable {
 
         if (order == null || order.getOrder() == null) {
             log.error("命令解析错误: {}", order);
-            response.setOrderType(Constant.OrderType.NO_MEANS_REQ);
+            response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
             result.setResult(Constant.ResultType.FAIL);
             result.setInfo("命令解析错误");
             response.setInfo(result);
@@ -97,7 +99,7 @@ public class ClientService implements Runnable {
 
         switch (order.getOrder()) {
             case REGISTER_REQ -> {
-                response.setOrderType(Constant.OrderType.REGISTER_RES);
+                response.setOrderType(Constant.ServerOrder.REGISTER_RES);
                 String[] params = order.getContent().split(",");
                 if (params.length != 2) {
                     log.warn("注册请求参数错误: {}", order.getContent());
@@ -108,7 +110,7 @@ public class ClientService implements Runnable {
                 }
             }
             case LOGIN_REQ -> {
-                response.setOrderType(Constant.OrderType.LOGIN_RES);
+                response.setOrderType(Constant.ServerOrder.LOGIN_RES);
                 String[] params = order.getContent().split(",");
                 if (params.length != 2) {
                     log.warn("登录请求参数错误: {}", order.getContent());
@@ -119,7 +121,7 @@ public class ClientService implements Runnable {
                 }
             }
             case LOGOUT_REQ -> {
-                response.setOrderType(Constant.OrderType.LOGOUT_RES);
+                response.setOrderType(Constant.ServerOrder.LOGOUT_RES);
                 String id = order.getContent();
                 if (id == null || id.isEmpty()) {
                     log.warn("登出请求参数错误: {}", order.getContent());
@@ -130,7 +132,7 @@ public class ClientService implements Runnable {
                 }
             }
             case FIND_REQ -> {
-                response.setOrderType(Constant.OrderType.FIND_RES);
+                response.setOrderType(Constant.ServerOrder.FIND_RES);
                 List<String> ids = search();
                 result.setResult(Constant.ResultType.SUCCESS);
                 if (ids != null) {
@@ -138,7 +140,7 @@ public class ClientService implements Runnable {
                 }
             }
             case SEND_MSG_REQ -> {
-                response.setOrderType(Constant.OrderType.NO_MEANS_REQ);
+                response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
                 MessageService messageService = new MessageServiceImpl();
                 Message message = messageService.splitMessage(order.getContent());
                 if (null == message) {
@@ -174,6 +176,7 @@ public class ClientService implements Runnable {
             if (1 == userDao.insertUser(user)) {
                 log.info("{} 注册成功", id);
                 result.setResult(Constant.ResultType.SUCCESS);
+                result.setInfo("注册成功");
             } else {
                 log.warn("{} 注册失败: 数据库插入失败", id);
                 result.setResult(Constant.ResultType.FAIL);

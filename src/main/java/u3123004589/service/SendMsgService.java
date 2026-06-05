@@ -31,7 +31,7 @@ public class SendMsgService implements Runnable {
 
                 ClientService dst = registry.getClient(message.getDstId());
                 if (dst != null) {
-                    String toSend = Constant.OrderType.MSG_RES.getOrderNo() + ","
+                    String toSend = Constant.ServerOrder.MSG_RES.getOrderNo() + ","
                             + message.getSrcId() + ","
                             + message.getDstId() + ","
                             + message.getMsg();

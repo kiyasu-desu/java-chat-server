@@ -12,7 +12,7 @@ import u3123004589.common.Constant;
 @NoArgsConstructor
 public class Order {
     //命令
-    private Constant.OrderType order;
+    private Constant.UserOrder order;
     //数据
     private String content;
 }

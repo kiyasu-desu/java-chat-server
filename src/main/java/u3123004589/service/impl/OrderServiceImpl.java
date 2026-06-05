@@ -22,10 +22,10 @@ public class OrderServiceImpl implements OrderService {
         String content = orderSplit.length > 1 ? orderSplit[1] : "";
 
         try {
-            Constant.OrderType orderType = null;
+            Constant.UserOrder orderType = null;
 
             //匹配命令码
-            for (Constant.OrderType type : Constant.OrderType.values()) {
+            for (Constant.UserOrder type : Constant.UserOrder.values()) {
                 if (type.getOrderNo().equals(orderId)) {
                     orderType = type;
                     break;

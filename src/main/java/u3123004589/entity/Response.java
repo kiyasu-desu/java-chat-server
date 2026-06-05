@@ -11,7 +11,7 @@ import u3123004589.common.Constant;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Response {
-    private Constant.OrderType orderType;
+    private Constant.ServerOrder orderType;
     private Result info;
 
     @Override
