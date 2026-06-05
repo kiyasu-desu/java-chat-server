@@ -21,12 +21,6 @@ public class Result {
 
     @Override
     public String toString() {
-
-        if (result == Constant.ResultType.SUCCESS && info != null) {
-            return result.toString();
-        } else {
-            return result + "," + info;
-        }
-
+        return result + "," + info;
     }
 }
