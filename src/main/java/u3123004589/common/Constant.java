@@ -29,6 +29,10 @@ public class Constant {
         private String orderNo;
         private String info;
 
+        @Override
+        public String toString() {
+            return orderNo;
+        }
     }
 
     //结果数据
