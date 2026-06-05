@@ -8,7 +8,7 @@ import u3123004589.util.OnlineRegistryUtil;
 import java.util.concurrent.BlockingQueue;
 
 @Slf4j
-public class SendMsgService implements Runnable{
+public class SendMsgService implements Runnable {
     private final BlockingQueue<Message> queue;
     private final OnlineRegistryUtil registry;
     private volatile boolean running = true;
