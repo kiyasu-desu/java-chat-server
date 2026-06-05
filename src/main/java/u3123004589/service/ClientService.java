@@ -114,6 +114,14 @@ public class ClientService implements Runnable {
 
             //登录
             case LOGIN_REQ -> {
+                if (isLogin()) {
+                    log.warn("登录请求失败: 用户 {} 已登录", userId);
+                    response.setOrderType(Constant.ServerOrder.LOGIN_RES);
+                    result.setResult(Constant.ResultType.FAIL);
+                    result.setInfo("登录请求失败: 用户已登录");
+                    response.setInfo(result);
+                    return response;
+                }
                 response.setOrderType(Constant.ServerOrder.LOGIN_RES);
                 String[] params = order.getContent().split(",");
                 if (params.length != 2) {
