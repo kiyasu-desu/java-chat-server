@@ -8,7 +8,7 @@ import u3123004589.service.MessageService;
 public class MessageServiceImpl implements MessageService {
     @Override
     public Message splitMessage(String str) {
-        String[] split = str.split(" ", 3);
+        String[] split = str.split(",", 3);
         if (split.length < 3) {
             log.warn("消息格式错误: {}", str);
             return null;
