@@ -66,7 +66,8 @@ public class ClientService implements Runnable {
 
                 Response response = runOrder(order);
                 out.println(response);
-                if (response.getOrderType() == Constant.ServerOrder.LOGOUT_RES) {
+                if (response.getOrderType() == Constant.ServerOrder.LOGOUT_RES
+                        && response.getInfo().getResult() == Constant.ResultType.SUCCESS) {
                     break;
                 }
             }
@@ -98,6 +99,7 @@ public class ClientService implements Runnable {
         }
 
         switch (order.getOrder()) {
+            //注册
             case REGISTER_REQ -> {
                 response.setOrderType(Constant.ServerOrder.REGISTER_RES);
                 String[] params = order.getContent().split(",");
@@ -109,6 +111,8 @@ public class ClientService implements Runnable {
                     result = register(params[0].trim(), params[1].trim());
                 }
             }
+
+            //登录
             case LOGIN_REQ -> {
                 response.setOrderType(Constant.ServerOrder.LOGIN_RES);
                 String[] params = order.getContent().split(",");
@@ -120,7 +124,17 @@ public class ClientService implements Runnable {
                     result = login(params[0].trim(), params[1].trim());
                 }
             }
+
+            //登出
             case LOGOUT_REQ -> {
+                if (!isLogin()) {
+                    log.warn("登出请求失败: 用户未登录");
+                    response.setOrderType(Constant.ServerOrder.LOGOUT_RES);
+                    result.setResult(Constant.ResultType.FAIL);
+                    result.setInfo("登出请求失败: 用户未登录");
+                    response.setInfo(result);
+                    return response;
+                }
                 response.setOrderType(Constant.ServerOrder.LOGOUT_RES);
                 String id = order.getContent();
 
@@ -128,7 +142,7 @@ public class ClientService implements Runnable {
                     log.warn("登出请求参数错误: {}", order.getContent());
                     result.setResult(Constant.ResultType.FAIL);
                     result.setInfo("登出请求参数错误");
-                } else if (userId == null || !userId.equals(id.trim())) {
+                } else if (!userId.equals(id.trim())) {
                     log.warn("登出请求参数错误: 用户 {} 试图登出用户 {}", userId, id);
                     result.setResult(Constant.ResultType.FAIL);
                     result.setInfo("登出请求参数错误: 无权登出其他用户");
@@ -139,6 +153,8 @@ public class ClientService implements Runnable {
                     }
                 }
             }
+
+            //搜索在线
             case FIND_REQ -> {
                 response.setOrderType(Constant.ServerOrder.FIND_RES);
                 List<String> ids = search();
@@ -147,6 +163,8 @@ public class ClientService implements Runnable {
                     result.setInfo(ids.isEmpty() ? "当前没有在线用户" : String.join(",", ids));
                 }
             }
+
+            //发消息
             case SEND_MSG_REQ -> {
                 response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
                 MessageService messageService = new MessageServiceImpl();
@@ -286,5 +304,9 @@ public class ClientService implements Runnable {
             result.setInfo(e.getMessage());
             return result;
         }
+    }
+
+    private Boolean isLogin() {
+        return userId != null;
     }
 }
