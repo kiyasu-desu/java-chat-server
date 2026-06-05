@@ -166,6 +166,14 @@ public class ClientService implements Runnable {
 
             //发消息
             case SEND_MSG_REQ -> {
+                if (!isLogin()) {
+                    log.warn("发送消息请求失败: 用户未登录");
+                    response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
+                    result.setResult(Constant.ResultType.FAIL);
+                    result.setInfo("发送消息请求失败: 用户未登录");
+                    response.setInfo(result);
+                    return response;
+                }
                 response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
                 MessageService messageService = new MessageServiceImpl();
                 Message message = messageService.splitMessage(order.getContent());
