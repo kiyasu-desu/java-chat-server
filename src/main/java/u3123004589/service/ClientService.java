@@ -123,12 +123,20 @@ public class ClientService implements Runnable {
             case LOGOUT_REQ -> {
                 response.setOrderType(Constant.ServerOrder.LOGOUT_RES);
                 String id = order.getContent();
-                if (id == null || id.isEmpty()) {
+
+                if (id == null || id.isBlank()) {
                     log.warn("登出请求参数错误: {}", order.getContent());
                     result.setResult(Constant.ResultType.FAIL);
                     result.setInfo("登出请求参数错误");
+                } else if (userId == null || !userId.equals(id.trim())) {
+                    log.warn("登出请求参数错误: 用户 {} 试图登出用户 {}", userId, id);
+                    result.setResult(Constant.ResultType.FAIL);
+                    result.setInfo("登出请求参数错误: 无权登出其他用户");
                 } else {
-                    result = logout(id);
+                    result = logout(id.trim());
+                    if (result.getResult() == Constant.ResultType.SUCCESS) {
+                        userId = null;
+                    }
                 }
             }
             case FIND_REQ -> {
@@ -210,6 +218,7 @@ public class ClientService implements Runnable {
                 registry.register(id, this);
                 log.info("{} 登录成功", id);
                 result.setResult(Constant.ResultType.SUCCESS);
+                result.setInfo("登录成功");
             }
             return result;
 
@@ -233,6 +242,7 @@ public class ClientService implements Runnable {
                 registry.unregister(id);
                 log.info("{} 登出成功", id);
                 result.setResult(Constant.ResultType.SUCCESS);
+                result.setInfo("登出成功");
             }
             return result;
 
@@ -265,6 +275,8 @@ public class ClientService implements Runnable {
             } else {
                 sendQueue.put(message);
                 log.info("{} 发送消息给 {}", message.getSrcId(), message.getDstId());
+                result.setResult(Constant.ResultType.SUCCESS);
+                result.setInfo("消息已发送");
             }
             return result;
 
