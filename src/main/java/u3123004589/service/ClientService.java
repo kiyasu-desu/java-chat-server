@@ -295,14 +295,14 @@ public class ClientService implements Runnable {
         Result result = new Result();
         try {
             if (registry.isOnline(message.getDstId())) {
-                log.warn("{} 发送消息失败: 接收者 {} 离线", message.getSrcId(), message.getDstId());
-                result.setResult(Constant.ResultType.FAIL);
-                result.setInfo("接收者离线");
-            } else {
                 sendQueue.put(message);
                 log.info("{} 发送消息给 {}", message.getSrcId(), message.getDstId());
                 result.setResult(Constant.ResultType.SUCCESS);
                 result.setInfo("消息已发送");
+            } else {
+                log.warn("{} 发送消息失败: 接收者 {} 离线", message.getSrcId(), message.getDstId());
+                result.setResult(Constant.ResultType.FAIL);
+                result.setInfo("接收者离线");
             }
             return result;
 
