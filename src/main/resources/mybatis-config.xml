@@ -10,11 +10,6 @@
         <package name="u3123004589.entity"/>
     </typeAliases>
 
-    <!-- 注册typeHandler -->
-    <typeHandlers>
-        <package name="u3123004589.typehandler"/>
-    </typeHandlers>
-
     <!-- 创建DataSource -->
     <environments default="development">
         <environment id="development">

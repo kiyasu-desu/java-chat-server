@@ -11,39 +11,22 @@
 
     <!--插入用户-->
     <insert id="insertUser" parameterType="u3123004589.entity.User">
-        insert into `user`(id, password, status)
-        values (#{id}, #{password}, #{status})
+        insert into `user`(id, password)
+        values (#{id}, #{password})
     </insert>
 
     <select id="getUserById" parameterType="java.lang.String" resultMap="UserResultMap">
-        select id, password, status
-        from `user`
-        where id = #{id}
-    </select>
-
-    <select id="getOnlineIds" resultType="java.lang.String">
-        select id
-        from `user`
-        where status = '0'
-    </select>
-
-    <select id="getLoginStatus" parameterType="java.lang.String" resultType="u3123004589.common.Constant$UserStatus">
-        select status
+        select id, password
         from `user`
         where id = #{id}
     </select>
 
     <select id="loginCheck" resultMap="UserResultMap">
-        select id, password, status
+        select id, password
         from `user`
         where id = #{id}
           and password = #{password}
     </select>
 
-    <update id="updateLoginStatus">
-        update `user`
-        set status = #{status}
-        where id = #{id}
-    </update>
 
 </mapper>

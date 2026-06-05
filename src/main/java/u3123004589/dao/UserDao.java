@@ -2,10 +2,7 @@ package u3123004589.dao;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import u3123004589.common.Constant;
 import u3123004589.entity.User;
-
-import java.util.List;
 
 @Mapper
 public interface UserDao {
@@ -15,15 +12,7 @@ public interface UserDao {
     //按id查找
     User getUserById(@Param("id") String id);
 
-    //查询在线id
-    List<String> getOnlineIds();
-
-    //查询登录状态
-    Constant.UserStatus getLoginStatus(@Param("id") String id);
-
     //登录验证
     User loginCheck(@Param("id") String id, @Param("password") String password);
 
-    //修改登录状态
-    int updateLoginStatus(@Param("id") String id, @Param("status") Constant.UserStatus status);
 }
