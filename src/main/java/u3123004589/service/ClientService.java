@@ -290,7 +290,7 @@ public class ClientService implements Runnable {
 
     private List<String> search() {
         try {
-
+            log.info("{} 查询在线用户列表", userId);
             List<String> ids = registry.getOnlineIds();
             return ids == null ? List.of() : ids;
         } catch (Exception e) {
