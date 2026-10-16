@@ -24,7 +24,7 @@ public class Server {
         Thread senderThread = new Thread(sender, "SendMsgService");
         senderThread.start();
 
-        try (ServerSocket server = new ServerSocket(12345);
+        try (ServerSocket server = new ServerSocket(23456);
              ExecutorService pool = Executors.newFixedThreadPool(30)) {
             System.out.println("server listening： ");
             while (true) {

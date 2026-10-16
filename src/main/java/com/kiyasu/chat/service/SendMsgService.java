@@ -20,7 +20,6 @@ public class SendMsgService implements Runnable {
 
     public void shutdown() {
         running = false;
-        Thread.currentThread().interrupt();
     }
 
     @Override
@@ -43,8 +42,9 @@ public class SendMsgService implements Runnable {
                     log.warn("目标用户 {} 不在线，无法发送消息", message.getDstId());
                 }
             } catch (InterruptedException e) {
-                log.error("发送消息线程被中断", e);
                 Thread.currentThread().interrupt();
+                log.info("发送消息线程收到中断，退出");
+                break;
             }
         }
 
