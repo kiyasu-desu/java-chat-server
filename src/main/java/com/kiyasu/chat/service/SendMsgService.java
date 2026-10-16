@@ -1,9 +1,9 @@
-package u3123004589.service;
+package com.kiyasu.chat.service;
 
 import lombok.extern.slf4j.Slf4j;
-import u3123004589.common.Constant;
-import u3123004589.entity.Message;
-import u3123004589.util.OnlineRegistryUtil;
+import com.kiyasu.chat.common.Constant;
+import com.kiyasu.chat.entity.Message;
+import com.kiyasu.chat.util.OnlineRegistryUtil;
 
 import java.util.concurrent.BlockingQueue;
 

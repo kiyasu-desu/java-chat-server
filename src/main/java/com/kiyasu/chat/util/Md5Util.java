@@ -1,4 +1,4 @@
-package u3123004589.util;
+package com.kiyasu.chat.util;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

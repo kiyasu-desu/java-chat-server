@@ -1,6 +1,6 @@
-package u3123004589.service;
+package com.kiyasu.chat.service;
 
-import u3123004589.entity.Message;
+import com.kiyasu.chat.entity.Message;
 
 public interface MessageService {
     Message splitMessage(String str);

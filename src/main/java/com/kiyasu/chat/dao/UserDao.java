@@ -1,8 +1,8 @@
-package u3123004589.dao;
+package com.kiyasu.chat.dao;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import u3123004589.entity.User;
+import com.kiyasu.chat.entity.User;
 
 @Mapper
 public interface UserDao {

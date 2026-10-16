@@ -1,4 +1,4 @@
-package u3123004589.util;
+package com.kiyasu.chat.util;
 
 import org.apache.ibatis.io.Resources;
 import org.apache.ibatis.session.SqlSessionFactory;

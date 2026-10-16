@@ -1,4 +1,4 @@
-package u3123004589.common;
+package com.kiyasu.chat.common;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

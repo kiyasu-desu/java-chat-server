@@ -1,15 +1,15 @@
-package u3123004589.service;
+package com.kiyasu.chat.service;
 
+import com.kiyasu.chat.entity.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.session.SqlSession;
-import u3123004589.common.Constant;
-import u3123004589.dao.UserDao;
-import u3123004589.entity.*;
-import u3123004589.service.impl.MessageServiceImpl;
-import u3123004589.service.impl.OrderServiceImpl;
-import u3123004589.util.Md5Util;
-import u3123004589.util.MyBatisUtil;
-import u3123004589.util.OnlineRegistryUtil;
+import com.kiyasu.chat.common.Constant;
+import com.kiyasu.chat.dao.UserDao;
+import com.kiyasu.chat.service.impl.MessageServiceImpl;
+import com.kiyasu.chat.service.impl.OrderServiceImpl;
+import com.kiyasu.chat.util.Md5Util;
+import com.kiyasu.chat.util.MyBatisUtil;
+import com.kiyasu.chat.util.OnlineRegistryUtil;
 
 import java.io.*;
 import java.net.Socket;
@@ -46,7 +46,7 @@ public class ClientService implements Runnable {
     public void run() {
         try (BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()))) {
 
-            out.println("这里是3123004589的聊天室，输入回车继续...");
+            out.println("这里是kiyasu的聊天室，输入回车继续...");
             br.readLine();
             out.println("请输入命令：");
 

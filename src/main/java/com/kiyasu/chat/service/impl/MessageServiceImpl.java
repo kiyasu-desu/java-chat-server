@@ -1,8 +1,8 @@
-package u3123004589.service.impl;
+package com.kiyasu.chat.service.impl;
 
 import lombok.extern.slf4j.Slf4j;
-import u3123004589.entity.Message;
-import u3123004589.service.MessageService;
+import com.kiyasu.chat.entity.Message;
+import com.kiyasu.chat.service.MessageService;
 
 @Slf4j
 public class MessageServiceImpl implements MessageService {

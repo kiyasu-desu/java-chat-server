@@ -7,7 +7,7 @@
 
     <!-- 配置别名 -->
     <typeAliases>
-        <package name="u3123004589.entity"/>
+        <package name="com.kiyasu.chat.entity"/>
     </typeAliases>
 
     <!-- 创建DataSource -->

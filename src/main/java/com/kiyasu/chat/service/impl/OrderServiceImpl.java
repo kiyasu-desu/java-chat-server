@@ -1,9 +1,9 @@
-package u3123004589.service.impl;
+package com.kiyasu.chat.service.impl;
 
 
-import u3123004589.common.Constant;
-import u3123004589.entity.Order;
-import u3123004589.service.OrderService;
+import com.kiyasu.chat.common.Constant;
+import com.kiyasu.chat.entity.Order;
+import com.kiyasu.chat.service.OrderService;
 
 public class OrderServiceImpl implements OrderService {
 

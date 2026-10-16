@@ -1,10 +1,10 @@
-package u3123004589.controller;
+package com.kiyasu.chat.controller;
 
 import lombok.extern.slf4j.Slf4j;
-import u3123004589.entity.Message;
-import u3123004589.service.ClientService;
-import u3123004589.service.SendMsgService;
-import u3123004589.util.OnlineRegistryUtil;
+import com.kiyasu.chat.entity.Message;
+import com.kiyasu.chat.service.ClientService;
+import com.kiyasu.chat.service.SendMsgService;
+import com.kiyasu.chat.util.OnlineRegistryUtil;
 
 import java.io.IOException;
 import java.net.ServerSocket;

@@ -1,6 +1,6 @@
-package u3123004589.util;
+package com.kiyasu.chat.util;
 
-import u3123004589.service.ClientService;
+import com.kiyasu.chat.service.ClientService;
 
 import java.util.ArrayList;
 import java.util.List;

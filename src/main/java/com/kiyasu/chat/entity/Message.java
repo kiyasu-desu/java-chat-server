@@ -1,4 +1,4 @@
-package u3123004589.entity;
+package com.kiyasu.chat.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
