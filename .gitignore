@@ -1,0 +1,7 @@
+target/
+logs/
+.idea/
+*.iml
+/src/main/resources/mysql.properties
+exclusion/
+.env

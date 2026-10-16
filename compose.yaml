@@ -1,0 +1,16 @@
+services:
+  mysql:
+    image: mysql:8.4
+    ports:
+      - "127.0.0.1:3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请配置根用户密码}
+      MYSQL_DATABASE: chat-app
+      MYSQL_USER: chat_user
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请配置应用用户密码}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docs/sql/chat-app.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+
+volumes:
+  mysql_data:
