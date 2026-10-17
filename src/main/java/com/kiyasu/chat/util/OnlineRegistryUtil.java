@@ -12,12 +12,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OnlineRegistryUtil {
     private final ConcurrentHashMap<String, ClientService> map = new ConcurrentHashMap<>();
 
-    public void register(String id, ClientService clientService) {
-        map.put(id, clientService);
+    public boolean register(String id, ClientService clientService) {
+        return map.putIfAbsent(id, clientService) == null;
     }
 
-    public void unregister(String id) {
-        map.remove(id);
+    public boolean unregister(String id, ClientService clientService) {
+        return map.remove(id, clientService);
     }
 
     public ClientService getClient(String id) {

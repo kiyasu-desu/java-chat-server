@@ -75,7 +75,7 @@ public class ClientService implements Runnable {
             log.error("处理客户端 {} 的请求时发生错误: {}", client.getRemoteSocketAddress(), e.getMessage());
         } finally {
             if (userId != null) {
-                registry.unregister(userId);
+                registry.unregister(userId, this);
             }
             try {
                 client.close();
@@ -243,13 +243,12 @@ public class ClientService implements Runnable {
                 log.warn("{} 登录失败: 用户ID或密码错误", id);
                 result.setResult(Constant.ResultType.FAIL);
                 result.setInfo("用户ID或密码错误");
-            } else if (registry.isOnline(id)) {
+            } else if (!registry.register(id, this)) {
                 log.warn("{} 登录失败: 用户已在线", id);
                 result.setResult(Constant.ResultType.FAIL);
                 result.setInfo("用户已在线");
             } else {
                 userId = id;
-                registry.register(id, this);
                 log.info("{} 登录成功", id);
                 result.setResult(Constant.ResultType.SUCCESS);
                 result.setInfo("登录成功");
@@ -268,12 +267,11 @@ public class ClientService implements Runnable {
         Result result = new Result();
         try {
 
-            if (!registry.isOnline(id)) {
-                log.warn("{} 登出失败: 用户已离线", id);
+            if (!registry.unregister(id, this)) {
+                log.warn("{} 登出失败: 当前连接没有对应的在线记录", id);
                 result.setResult(Constant.ResultType.FAIL);
                 result.setInfo("用户已离线");
             } else {
-                registry.unregister(id);
                 log.info("{} 登出成功", id);
                 result.setResult(Constant.ResultType.SUCCESS);
                 result.setInfo("登出成功");
