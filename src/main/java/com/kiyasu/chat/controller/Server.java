@@ -17,7 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 @Slf4j
 public class Server {
     public static void main(String[] args) {
-        BlockingQueue<Message> sendQueue = new LinkedBlockingQueue<>();
+        BlockingQueue<Message> sendQueue = new LinkedBlockingQueue<>(1024);
         OnlineRegistryUtil registry = new OnlineRegistryUtil();
 
         SendMsgService sender = new SendMsgService(sendQueue, registry);
