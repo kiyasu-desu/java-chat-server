@@ -23,10 +23,10 @@ public class OnlineRegistryUtilTest {
         ExecutorService pool = Executors.newFixedThreadPool(2);
 
         try (Socket socketA = new MemorySocket();
-             Socket socketB = new MemorySocket()) {
+             Socket socketB = new MemorySocket();
+             ClientService clientA = new ClientService(socketA, new LinkedBlockingQueue<>(), registry);
+             ClientService clientB = new ClientService(socketB, new LinkedBlockingQueue<>(), registry)) {
 
-            ClientService clientA = new ClientService(socketA, new LinkedBlockingQueue<>(), registry);
-            ClientService clientB = new ClientService(socketB, new LinkedBlockingQueue<>(), registry);
 
             Future<Boolean> resultA = pool.submit(() -> attemptLogin(registry, barrier, clientA));
             Future<Boolean> resultB = pool.submit(() -> attemptLogin(registry, barrier, clientB));
@@ -58,10 +58,10 @@ public class OnlineRegistryUtilTest {
         OnlineRegistryUtil registry = new OnlineRegistryUtil();
 
         try (Socket oldSocket = new MemorySocket();
-             Socket newSocket = new MemorySocket()) {
+             Socket newSocket = new MemorySocket();
+             ClientService oldClient = new ClientService(oldSocket, new LinkedBlockingQueue<>(), registry);
+             ClientService newClient = new ClientService(newSocket, new LinkedBlockingQueue<>(), registry)) {
 
-            ClientService oldClient = new ClientService(oldSocket, new LinkedBlockingQueue<>(), registry);
-            ClientService newClient = new ClientService(newSocket, new LinkedBlockingQueue<>(), registry);
 
             assertTrue(registry.register("Alice", oldClient));
             assertTrue(registry.unregister("Alice", oldClient));
