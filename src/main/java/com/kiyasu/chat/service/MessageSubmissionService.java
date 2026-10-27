@@ -24,7 +24,7 @@ public class MessageSubmissionService {
         Result result = new Result();
 
         if (!message.getSrcId().equals(currentUserId)) {
-            log.warn("{} 发送消息失败: 消息源ID {} 不匹配当前登录用户 {}", message.getSrcId(), message.getSrcId(), currentUserId);
+            log.warn("发送消息失败: 消息源ID {} 不匹配当前登录用户 {}", message.getSrcId(), currentUserId);
             result.setResult(Constant.ResultType.FAIL);
             result.setInfo("消息源ID不匹配当前登录用户");
             return result;
