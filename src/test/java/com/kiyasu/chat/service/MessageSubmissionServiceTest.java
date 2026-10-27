@@ -1,10 +1,15 @@
 package com.kiyasu.chat.service;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.kiyasu.chat.common.Constant;
 import com.kiyasu.chat.entity.Message;
 import com.kiyasu.chat.entity.Result;
 import com.kiyasu.chat.util.OnlineRegistryUtil;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -13,8 +18,41 @@ import java.net.Socket;
 import java.util.concurrent.*;
 
 import static org.junit.Assert.*;
-
 public class MessageSubmissionServiceTest {
+
+    @Test
+    public void mismatchedSenderShouldLogClaimedAndCurrentUserIds() {
+
+
+        LinkedBlockingQueue<Message> messages = new LinkedBlockingQueue<>(1);
+        OnlineRegistryUtil registry = new OnlineRegistryUtil();
+        MessageSubmissionService messageSubmissionService = new MessageSubmissionService(messages, registry);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+
+        Logger logger =  (Logger) LoggerFactory.getLogger(MessageSubmissionService.class);
+
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+
+            messageSubmissionService.submit("Alice", new Message("Marry", "Bob", "hello"));
+
+            assertEquals(1, appender.list.size());
+            ILoggingEvent event = appender.list.getFirst();
+
+            assertEquals(Level.WARN, event.getLevel());
+            assertEquals(
+                    "发送消息失败: 消息源ID Marry 不匹配当前登录用户 Alice",
+                    event.getFormattedMessage()
+            );
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+
+    }
 
     /**
      * 测试目标：队列已满时，submit() 应及时返回“服务器繁忙”，并保留原先排队的消息。
