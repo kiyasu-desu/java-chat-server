@@ -14,41 +14,52 @@ import com.kiyasu.chat.util.OnlineRegistryUtil;
 import java.io.*;
 import java.net.Socket;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
-public class ClientService implements Runnable {
-    private final Socket client;
-    private final MessageSubmissionService messageSubmissionService; //发送消息队列
-    private String userId;
-    private final OnlineRegistryUtil registry;
-    private final PrintWriter out;
+public class ClientService implements AutoCloseable, Runnable {
+
+    private final Socket client;                                        // 客户端套接字
+    private final MessageSubmissionService messageSubmissionService;    // 消息发送队列
+    private String userId;                                              // 当前客户端对应的用户ID
+    private final OnlineRegistryUtil registry;                          // 在线用户注册表
+    private final PrintWriter out;                                      // 输出流，用于向客户端发送消息
+    private static final int OUTBOUND_CAPACITY = 256;                   // 输出队列容量
+    private final BlockingQueue<String> outbound = new ArrayBlockingQueue<>(OUTBOUND_CAPACITY); // 输出队列，用于存储待发送的消息
+    private volatile boolean running = true;
+    private final Thread writer;
+    private static final String POISON = "\u0000";                      // 哨兵值，用于标记写线程退出
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public ClientService(Socket client, BlockingQueue<Message> sendQueue, OnlineRegistryUtil registry) throws IOException {
         this.client = client;
         this.messageSubmissionService = new MessageSubmissionService(sendQueue, registry);
         this.registry = registry;
         this.out = new PrintWriter(new OutputStreamWriter(client.getOutputStream()), true);
+        this.writer = new Thread(this::writeLoop, "chat-writer-" + client.getRemoteSocketAddress());
+        this.writer.setDaemon(true);
+        this.writer.start();
     }
 
-    public synchronized boolean send(String text) {
-        try {
-            out.println(text);
-            out.flush();
-            return true;
-        } catch (Exception e) {
-            log.error("发送消息失败: {}", e.getMessage());
-            return false;
-        }
+    public boolean send(String text) {
+        if (!running) return false;
+        return outbound.offer(text);
     }
 
     @Override
     public void run() {
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()))) {
+        try {
+            BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()));
 
-            out.println("这里是kiyasu的聊天室，输入回车继续...");
+            if (!send("这里是kiyasu的聊天室，输入回车继续...")) {
+                return;
+            }
             br.readLine();
-            out.println("请输入命令：");
+            if (!send("请输入命令：")) {
+                return;
+            }
 
             while (true) {
                 String inputLine = br.readLine();
@@ -60,12 +71,16 @@ public class ClientService implements Runnable {
                 OrderService orderService = new OrderServiceImpl();
                 Order order = orderService.splitOrder(inputLine);
                 if (order == null) {
-                    out.println(Constant.ServerOrder.NO_MEANS_REQ + "，命令格式错误");
+                    if (!send(Constant.ServerOrder.NO_MEANS_REQ + "，命令格式错误")) {
+                        break;
+                    }
                     continue;
                 }
 
                 Response response = runOrder(order);
-                out.println(response);
+                if (!send(response.toString())) {
+                    break;
+                }
                 if (response.getOrderType() == Constant.ServerOrder.LOGOUT_RES
                         && response.getInfo().getResult() == Constant.ResultType.SUCCESS) {
                     break;
@@ -77,11 +92,68 @@ public class ClientService implements Runnable {
             if (userId != null) {
                 registry.unregister(userId, this);
             }
-            try {
-                client.close();
-            } catch (IOException e) {
-                log.error("关闭客户端 {} 连接时发生错误: {}", client.getRemoteSocketAddress(), e.getMessage());
+            close();
+        }
+    }
+
+    /**
+     * 关闭客户端连接
+     */
+    @Override
+    public void close() {
+        if(!closed.compareAndSet(false, true)) {
+            return;
+        }
+        running = false;
+        outbound.offer(POISON);
+        joinWriter(300);
+        try {
+            client.close();
+        } catch (IOException e) {
+            log.error("关闭客户端 {} 连接时发生错误: {}", client.getRemoteSocketAddress(), e.getMessage());
+        }
+        writer.interrupt();
+        joinWriter(1000);
+        if (writer.isAlive()) {
+            log.warn("写线程 {} 未能正常退出", writer.getName());
+        }
+    }
+
+    private void joinWriter(int timeout) {
+        try {
+            writer.join(timeout);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * 写线程循环，从输出队列中取出消息并发送给客户端，直到收到哨兵值或线程被中断
+     */
+    private void writeLoop() {
+        String message;
+        try {
+            while (true) {
+                message = outbound.take();
+                if (POISON.equals(message)) {
+                    break;
+                }
+                out.println(message);
+                if (out.checkError()) {
+                    running = false;
+                    log.warn("向客户端 {} 发送消息时发生错误", client.getRemoteSocketAddress());
+                    try {
+                        client.close();
+                    } catch (IOException e) {
+                        log.error("关闭客户端 {} 连接时发生错误", client.getRemoteSocketAddress(), e);
+                    }
+                    break;
+                }
             }
+        } catch (InterruptedException e) {
+            running = false;
+            Thread.currentThread().interrupt();
+            log.info("写线程收到中断，退出");
         }
     }
 

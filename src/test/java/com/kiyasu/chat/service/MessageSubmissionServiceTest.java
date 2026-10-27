@@ -29,9 +29,8 @@ public class MessageSubmissionServiceTest {
 
         ExecutorService pool = Executors.newSingleThreadExecutor();
 
-        try (Socket socket = new MemorySocket()) {
-
-            ClientService client = new ClientService(socket, new LinkedBlockingQueue<>(), registry);
+        try (Socket socket = new MemorySocket();
+             ClientService client = new ClientService(socket, new LinkedBlockingQueue<>(), registry)) {
 
             assertTrue(registry.register("Bob", client));
 
@@ -72,9 +71,9 @@ public class MessageSubmissionServiceTest {
 
         MessageSubmissionService messageSubmissionService = new MessageSubmissionService(messages, registry);
 
-        try(Socket socket = new MemorySocket()) {
+        try (Socket socket = new MemorySocket();
+             ClientService client = new ClientService(socket, new LinkedBlockingQueue<>(), registry)) {
 
-            ClientService client = new ClientService(socket, new LinkedBlockingQueue<>(), registry);
             assertTrue(registry.register("Bob", client));
 
             Message msg = new Message("Alice", "Bob", "hello");
