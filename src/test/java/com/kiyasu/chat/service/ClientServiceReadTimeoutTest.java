@@ -3,6 +3,8 @@ package com.kiyasu.chat.service;
 import com.kiyasu.chat.util.OnlineRegistryUtil;
 import org.junit.Test;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -122,6 +124,65 @@ public class ClientServiceReadTimeoutTest {
             assertTrue("写线程未退出", stopped);
 
         }
+
+    }
+
+    @Test(timeout = 5000)
+    public void commandBeforeTimeoutShouldKeepConnectionOnline() throws Exception {
+
+        InetAddress loopback = InetAddress.getLoopbackAddress();
+        OnlineRegistryUtil registry = new OnlineRegistryUtil();
+
+        try (ServerSocket listener = new ServerSocket(0, 50, loopback);
+             Socket clientSide = new Socket(loopback, listener.getLocalPort());
+             Socket serverSide = listener.accept()) {
+
+            long writerThreadsBefore = countWriterThreads();
+            ClientService client = new ClientService(
+                    serverSide, new LinkedBlockingQueue<>(), registry, 2000);
+
+            clientSide.setSoTimeout(1000);
+
+            assertTrue(registry.register("Alice", client));
+
+            Field userIdField = ClientService.class.getDeclaredField("userId");
+            userIdField.setAccessible(true);
+            userIdField.set(client, "Alice");
+
+            assertSame(client, registry.getClient("Alice"));
+
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Future<?> session = null;
+
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(clientSide.getInputStream()))) {
+                session = executor.submit(client);
+
+                assertEquals("这里是kiyasu的聊天室，输入回车继续...",  br.readLine());
+                clientSide.getOutputStream().write(
+                        "\r\n".getBytes(StandardCharsets.UTF_8));
+                assertEquals("请输入命令：",  br.readLine());
+                clientSide.getOutputStream().write(
+                        "004\r\n".getBytes(StandardCharsets.UTF_8));
+                assertEquals("104,SUCCESS,Alice",  br.readLine());
+
+                assertTrue(registry.isOnline("Alice"));
+                assertFalse(session.isDone());
+
+            } finally {
+                if (session != null) {
+                    session.cancel(true);
+                }
+                client.close();
+                executor.shutdownNow();
+            }
+
+            assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
+            boolean stopped = awaitUntil(
+                    () -> countWriterThreads() == writerThreadsBefore, 1000);
+            assertTrue("写线程未退出", stopped);
+
+        }
+
 
     }
 
