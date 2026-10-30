@@ -129,7 +129,7 @@ S: 103,SUCCESS,登出成功
 mvn test
 ```
 
-共 23 项自动化测试，全部基于内存实现（内存 Socket / 直接调用公开接口），**不需要启动 MySQL**：
+共 23 项自动化测试，**不需要启动 MySQL**：其中 `ClientServiceReadTimeoutTest` 的 3 项测试使用真实的 loopback TCP 连接，需要允许绑定和连接本机临时端口；其余测试使用内存 Socket 或直接调用接口。
 
 | 测试类 | 数量 | 覆盖内容 |
 |---|---|---|
