@@ -34,7 +34,7 @@ public class SendMsgServiceTest {
             assertEquals(List.of("drain-1", "drain-2"), socket.getWrittenText().lines().toList());
             assertFalse(client.send("after-close"));
             boolean stopped = awaitUntil(() -> countWriterThreads() == before, 1000);
-            assertTrue("写线程未退出，仍有 " + countWriterThreads(), stopped);
+            assertTrue("写线程未退出, 仍有 " + countWriterThreads(), stopped);
         }
 
     }

@@ -55,7 +55,7 @@ public class MessageSubmissionServiceTest {
     }
 
     /**
-     * 测试目标：队列已满时，submit() 应及时返回“服务器繁忙”，并保留原先排队的消息。
+     * 测试目标：队列已满时, submit() 应及时返回“服务器繁忙”, 并保留原先排队的消息。
      */
     @Test
     public void fullQueueShouldRejectNewMessageAndKeepQueuedMessage() throws Exception {

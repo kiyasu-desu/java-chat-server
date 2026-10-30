@@ -36,14 +36,14 @@ public class SendMsgService implements Runnable {
                             + message.getMsg();
 
                     if (!dst.send(toSend)) {
-                        log.error("目标在线但发送失败，发送者: {}, 接收者: {}", message.getSrcId(), message.getDstId());
+                        log.error("目标在线但发送失败, 发送者: {}, 接收者: {}", message.getSrcId(), message.getDstId());
                     }
                 } else {
-                    log.warn("目标用户 {} 不在线，无法发送消息", message.getDstId());
+                    log.warn("目标用户 {} 不在线, 无法发送消息", message.getDstId());
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                log.info("发送消息线程收到中断，退出");
+                log.info("发送消息线程收到中断, 退出");
                 break;
             }
         }

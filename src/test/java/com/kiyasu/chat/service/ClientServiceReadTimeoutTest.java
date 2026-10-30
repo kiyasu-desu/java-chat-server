@@ -157,10 +157,10 @@ public class ClientServiceReadTimeoutTest {
             try(BufferedReader br = new BufferedReader(new InputStreamReader(clientSide.getInputStream()))) {
                 session = executor.submit(client);
 
-                assertEquals("这里是kiyasu的聊天室，输入回车继续...",  br.readLine());
+                assertEquals("这里是kiyasu的聊天室, 输入回车继续...",  br.readLine());
                 clientSide.getOutputStream().write(
                         "\r\n".getBytes(StandardCharsets.UTF_8));
-                assertEquals("请输入命令：",  br.readLine());
+                assertEquals("请输入命令: ",  br.readLine());
                 clientSide.getOutputStream().write(
                         "004\r\n".getBytes(StandardCharsets.UTF_8));
                 assertEquals("104,SUCCESS,Alice",  br.readLine());
