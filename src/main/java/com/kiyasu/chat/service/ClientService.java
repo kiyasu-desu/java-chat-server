@@ -24,14 +24,14 @@ public class ClientService implements AutoCloseable, Runnable {
 
     private static final int DEFAULT_READ_TIMEOUT_MILLIS = 60_000;      // 默认读超时
     private static final int OUTBOUND_CAPACITY = 256;                   // 输出队列容量
-    private static final String POISON = "\u0000";                      // 哨兵值，用于标记写线程退出
+    private static final String POISON = "\u0000";                      // 哨兵值, 用于标记写线程退出
 
     private final Socket client;                                        // 客户端套接字
     private final MessageSubmissionService messageSubmissionService;    // 消息发送队列
     private String userId;                                              // 当前客户端对应的用户ID
     private final OnlineRegistryUtil registry;                          // 在线用户注册表
-    private final PrintWriter out;                                      // 输出流，用于向客户端发送消息
-    private final BlockingQueue<String> outbound = new ArrayBlockingQueue<>(OUTBOUND_CAPACITY); // 输出队列，用于存储待发送的消息
+    private final PrintWriter out;                                      // 输出流, 用于向客户端发送消息
+    private final BlockingQueue<String> outbound = new ArrayBlockingQueue<>(OUTBOUND_CAPACITY); // 输出队列, 用于存储待发送的消息
     private volatile boolean running = true;
     private final Thread writer;
     private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -68,11 +68,11 @@ public class ClientService implements AutoCloseable, Runnable {
         try {
             BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()));
 
-            if (!send("这里是kiyasu的聊天室，输入回车继续...")) {
+            if (!send("这里是kiyasu的聊天室, 输入回车继续...")) {
                 return;
             }
             br.readLine();
-            if (!send("请输入命令：")) {
+            if (!send("请输入命令: ")) {
                 return;
             }
 
@@ -86,7 +86,7 @@ public class ClientService implements AutoCloseable, Runnable {
                 OrderService orderService = new OrderServiceImpl();
                 Order order = orderService.splitOrder(inputLine);
                 if (order == null) {
-                    if (!send(Constant.ServerOrder.NO_MEANS_REQ + "，命令格式错误")) {
+                    if (!send(Constant.ServerOrder.NO_MEANS_REQ + ", 命令格式错误")) {
                         break;
                     }
                     continue;
@@ -102,7 +102,7 @@ public class ClientService implements AutoCloseable, Runnable {
                 }
             }
         } catch (SocketTimeoutException e) {
-            log.info("客户端 {} 读空闲超时，关闭连接", client.getRemoteSocketAddress());
+            log.info("客户端 {} 读空闲超时, 关闭连接", client.getRemoteSocketAddress());
         } catch (IOException e) {
             log.error("处理客户端 {} 的请求时发生错误: {}", client.getRemoteSocketAddress(), e.getMessage());
         } finally {
@@ -145,7 +145,7 @@ public class ClientService implements AutoCloseable, Runnable {
     }
 
     /**
-     * 写线程循环，从输出队列中取出消息并发送给客户端，直到收到哨兵值或线程被中断
+     * 写线程循环, 从输出队列中取出消息并发送给客户端, 直到收到哨兵值或线程被中断
      */
     private void writeLoop() {
         String message;
@@ -170,7 +170,7 @@ public class ClientService implements AutoCloseable, Runnable {
         } catch (InterruptedException e) {
             running = false;
             Thread.currentThread().interrupt();
-            log.info("写线程收到中断，退出");
+            log.info("写线程收到中断, 退出");
         }
     }
 

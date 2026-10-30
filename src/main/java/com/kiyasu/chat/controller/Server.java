@@ -26,7 +26,7 @@ public class Server {
 
         try (ServerSocket server = new ServerSocket(23456);
              ExecutorService pool = Executors.newFixedThreadPool(30)) {
-            System.out.println("server listening： ");
+            System.out.println("server listening: ");
             while (true) {
                 Socket client = server.accept();
                 pool.submit(new ClientService(client, sendQueue, registry));

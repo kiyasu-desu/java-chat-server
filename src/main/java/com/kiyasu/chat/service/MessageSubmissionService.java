@@ -35,7 +35,7 @@ public class MessageSubmissionService {
                 if (messageBlockingQueue.offer(message)) {
                     result.setResult(Constant.ResultType.SUCCESS);
                     result.setInfo("消息已加入发送队列");
-                    log.info("{} 发送消息给 {}，消息已加入发送队列", message.getSrcId(), message.getDstId());
+                    log.info("{} 发送消息给 {}, 消息已加入发送队列", message.getSrcId(), message.getDstId());
                 } else {
                     result.setResult(Constant.ResultType.FAIL);
                     result.setInfo("服务器繁忙");
