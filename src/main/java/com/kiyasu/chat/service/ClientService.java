@@ -2,13 +2,9 @@ package com.kiyasu.chat.service;
 
 import com.kiyasu.chat.entity.*;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.session.SqlSession;
 import com.kiyasu.chat.common.Constant;
-import com.kiyasu.chat.dao.UserDao;
 import com.kiyasu.chat.service.impl.MessageServiceImpl;
 import com.kiyasu.chat.service.impl.OrderServiceImpl;
-import com.kiyasu.chat.util.Md5Util;
-import com.kiyasu.chat.util.MyBatisUtil;
 import com.kiyasu.chat.util.OnlineRegistryUtil;
 
 import java.io.*;
@@ -35,6 +31,7 @@ public class ClientService implements AutoCloseable, Runnable {
     private volatile boolean running = true;
     private final Thread writer;
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final AccountService accountService;
 
     public ClientService(Socket client,
                          BlockingQueue<Message> sendQueue,
@@ -50,6 +47,7 @@ public class ClientService implements AutoCloseable, Runnable {
 
         this.client = client;
         client.setSoTimeout(readTimeoutMillis);
+        this.accountService = new AccountService();
         this.messageSubmissionService = new MessageSubmissionService(sendQueue, registry);
         this.registry = registry;
         this.out = new PrintWriter(new OutputStreamWriter(client.getOutputStream()), true);
@@ -197,7 +195,7 @@ public class ClientService implements AutoCloseable, Runnable {
                     result.setResult(Constant.ResultType.FAIL);
                     result.setInfo("注册请求参数错误");
                 } else {
-                    result = register(params[0].trim(), params[1].trim());
+                    result = accountService.register(params[0].trim(), params[1].trim());
                 }
             }
 
@@ -287,52 +285,11 @@ public class ClientService implements AutoCloseable, Runnable {
         return response;
     }
 
-    private Result register(String id, String password) {
-        Result result = new Result();
-        try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
-            UserDao userDao = session.getMapper(UserDao.class);
-
-            if (userDao.getUserById(id) != null) {
-                log.warn("{} 注册失败: 用户ID已存在", id);
-                result.setResult(Constant.ResultType.FAIL);
-                result.setInfo("用户ID已存在");
-                return result;
-            }
-
-            User user = User.builder()
-                    .id(id)
-                    .password(Md5Util.md5(password))
-                    .build();
-
-            if (1 == userDao.insertUser(user)) {
-                log.info("{} 注册成功", id);
-                result.setResult(Constant.ResultType.SUCCESS);
-                result.setInfo("注册成功");
-            } else {
-                log.warn("{} 注册失败: 数据库插入失败", id);
-                result.setResult(Constant.ResultType.FAIL);
-                result.setInfo("数据库插入失败");
-            }
-            return result;
-
-        } catch (Exception e) {
-            log.error("{} 注册失败: {}", id, e.getMessage());
-            result.setResult(Constant.ResultType.FAIL);
-            result.setInfo(e.getMessage());
-            return result;
-        }
-    }
 
     private Result login(String id, String password) {
-        Result result = new Result();
-        try (SqlSession session = MyBatisUtil.getSqlSessionFactory().openSession(true)) {
-            UserDao userDao = session.getMapper(UserDao.class);
-
-            if (userDao.loginCheck(id, Md5Util.md5(password)) == null) {
-                log.warn("{} 登录失败: 用户ID或密码错误", id);
-                result.setResult(Constant.ResultType.FAIL);
-                result.setInfo("用户ID或密码错误");
-            } else if (!registry.register(id, this)) {
+        Result result = accountService.verifyCredentials(id, password);
+        if (result.getResult() == Constant.ResultType.SUCCESS) {
+            if (!registry.register(id, this)) {
                 log.warn("{} 登录失败: 用户已在线", id);
                 result.setResult(Constant.ResultType.FAIL);
                 result.setInfo("用户已在线");
@@ -342,14 +299,8 @@ public class ClientService implements AutoCloseable, Runnable {
                 result.setResult(Constant.ResultType.SUCCESS);
                 result.setInfo("登录成功");
             }
-            return result;
-
-        } catch (Exception e) {
-            log.error("{}登录失败: {}", id, e.getMessage());
-            result.setResult(Constant.ResultType.FAIL);
-            result.setInfo(e.getMessage());
-            return result;
         }
+        return result;
     }
 
     private Result logout(String id) {
