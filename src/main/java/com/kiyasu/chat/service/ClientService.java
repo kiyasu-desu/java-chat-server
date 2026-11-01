@@ -153,7 +153,9 @@ public class ClientService implements AutoCloseable, Runnable {
                 if (POISON.equals(message)) {
                     break;
                 }
-                out.println(message);
+                out.print(message);
+                out.print('\n');
+                out.flush();
                 if (out.checkError()) {
                     running = false;
                     log.warn("向客户端 {} 发送消息时发生错误", client.getRemoteSocketAddress());
