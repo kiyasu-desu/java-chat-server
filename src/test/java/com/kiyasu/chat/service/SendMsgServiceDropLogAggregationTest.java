@@ -59,7 +59,16 @@ public class SendMsgServiceDropLogAggregationTest {
                     "接收者 Bob 丢弃持续, 本次新增 1000 条, 累计 1000 条",
                     dropEvents.get(1).getFormattedMessage());
 
+            try (SendMsgServiceTest.RecordingSocket barrierSocket = new SendMsgServiceTest.RecordingSocket();
+                 ClientService barrierClient = new ClientService(barrierSocket, new LinkedBlockingQueue<>(), registry)) {
+                assertTrue(registry.register("Barrier", barrierClient));
+                shared.put(new Message("Alice", "Barrier", "processed"));
+                assertTrue(barrierSocket.awaitMessage(1, TimeUnit.SECONDS));
+                assertTrue(registry.unregister("Barrier", barrierClient));
+            }
             bobSocket.release();
+            assertTrue(SendMsgServiceTest.awaitUntil(
+                    () -> bobSocket.getWrittenText().contains("fill\n"), 2000));
             shared.put(new Message("Alice", "Bob", "after"));
             assertTrue(SendMsgServiceTest.awaitUntil(
                     () -> dropEvents(appender).size() >= 3, 2000));
