@@ -220,10 +220,12 @@ public class SendMsgServiceDropLogAggregationTest {
     }
 
     private static List<ILoggingEvent> dropEvents(ListAppender<ILoggingEvent> appender) {
-        return appender.list.stream()
-                .filter(e -> e.getLevel() == Level.WARN)
-                .filter(e -> e.getLoggerName().equals(SendMsgService.class.getName()))
-                .toList();
+        synchronized (appender) {
+            return appender.list.stream()
+                    .filter(e -> e.getLevel() == Level.WARN)
+                    .filter(e -> e.getLoggerName().equals(SendMsgService.class.getName()))
+                    .toList();
+        }
     }
 
 }
