@@ -95,5 +95,20 @@ public class OrderServiceImplTest {
 
     }
 
+    /**
+     * 测试: 群发命令
+     */
+    @Test
+    public void broadcastOrderShouldParseTypeAndContent() {
+        String string = "006,hello,world";
+        Order order = orderService.splitOrder(string);
+
+        assertNotNull(order);
+        assertNotNull(order.getOrder());
+        assertEquals("006", order.getOrder().getOrderNo());
+        assertEquals(Constant.UserOrder.GROUP_MSG_REQ, order.getOrder());
+        assertEquals("hello,world", order.getContent());
+    }
+
 
 }

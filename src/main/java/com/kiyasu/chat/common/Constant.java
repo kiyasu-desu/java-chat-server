@@ -38,7 +38,8 @@ public class Constant {
         LOGIN_REQ("002", "登录"),
         LOGOUT_REQ("003", "登出"),
         FIND_REQ("004", "查找用户"),
-        SEND_MSG_REQ("005", "发送消息");
+        SEND_MSG_REQ("005", "发送消息"),
+        GROUP_MSG_REQ("006", "群发消息");
 
         private String orderNo;
         private String info;
