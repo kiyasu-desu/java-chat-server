@@ -195,7 +195,13 @@ public class SendMsgServiceDropLogAggregationTest {
             for (int i = 0; i < 3; i++) {
                 shared.put(new Message("Alice", "Bob", "after" + i));
             }
-            assertTrue(SendMsgServiceTest.awaitUntil(shared::isEmpty, 2000));
+            try (SendMsgServiceTest.RecordingSocket barrierSocket = new SendMsgServiceTest.RecordingSocket();
+                 ClientService barrierClient = new ClientService(barrierSocket, new LinkedBlockingQueue<>(), registry)) {
+                assertTrue(registry.register("Barrier", barrierClient));
+                shared.put(new Message("Alice", "Barrier", "processed"));
+                assertTrue(barrierSocket.awaitMessage(1, TimeUnit.SECONDS));
+                assertTrue(registry.unregister("Barrier", barrierClient));
+            }
 
             assertTrue(registry.unregister("Bob", bobClient));
             shared.put(new Message("Alice", "Bob", "after"));
