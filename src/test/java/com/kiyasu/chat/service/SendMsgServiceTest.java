@@ -142,7 +142,7 @@ public class SendMsgServiceTest {
     /**
      * 阻塞型 Socket
      */
-    private static class BlockingSocket extends Socket {
+    static class BlockingSocket extends Socket {
         private final CountDownLatch releaseLatch = new CountDownLatch(1);          // 控制阻塞与放行
         private final CountDownLatch writeEnteredLatch = new CountDownLatch(1);     // 确认写操作已经进入阻塞点
         private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();   // 缓存写入数据
@@ -199,7 +199,7 @@ public class SendMsgServiceTest {
     /**
      * 可观测内存 Socket
      */
-    private static class RecordingSocket extends Socket {
+    static class RecordingSocket extends Socket {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         CountDownLatch messageWrittenLatch = new CountDownLatch(1);
         OutputStream outputStream = new OutputStream() {
