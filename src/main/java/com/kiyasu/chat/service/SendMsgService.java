@@ -1,9 +1,9 @@
 package com.kiyasu.chat.service;
 
-import lombok.extern.slf4j.Slf4j;
 import com.kiyasu.chat.common.Constant;
 import com.kiyasu.chat.entity.Message;
 import com.kiyasu.chat.util.OnlineRegistryUtil;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.List;
@@ -33,22 +33,10 @@ public class SendMsgService implements Runnable {
         while (running) {
             try {
                 Message message = queue.take();
-
-                ClientService dst = registry.getClient(message.getDstId());
-                if (dst != null) {
-                    String toSend = Constant.ServerOrder.MSG_RES.getOrderNo() + ","
-                            + message.getSrcId() + ","
-                            + message.getDstId() + ","
-                            + message.getMsg();
-
-                    if (!dst.send(toSend)) {
-                        recordDrop(message.getDstId());
-                    } else {
-                        reportTail(message.getDstId());
-                    }
+                if (message.isBroadcast()) {
+                    sendBroadcast(message);
                 } else {
-                    log.warn("目标用户 {} 不在线, 无法发送消息", message.getDstId());
-                    reportTail(message.getDstId());
+                    sendSingle(message);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -60,6 +48,49 @@ public class SendMsgService implements Runnable {
             reportTail(dstId);
         }
 
+    }
+
+    /**
+     * 单聊消息发送
+     * @param message 消息
+     */
+    private void sendSingle(Message message) {
+        ClientService dst = registry.getClient(message.getDstId());
+        if (dst != null) {
+            String toSend = Constant.ServerOrder.MSG_RES.getOrderNo() + ","
+                    + message.getSrcId() + ","
+                    + message.getDstId() + ","
+                    + message.getMsg();
+
+            if (!dst.send(toSend)) {
+                recordDrop(message.getDstId());
+            } else {
+                reportTail(message.getDstId());
+            }
+        } else {
+            log.warn("目标用户 {} 不在线, 无法发送消息", message.getDstId());
+            reportTail(message.getDstId());
+        }
+    }
+
+    /**
+     * 群发消息
+     * @param message 消息
+     */
+    private void sendBroadcast(Message message) {
+        String toSend = Constant.ServerOrder.GROUP_MSG_RES.getOrderNo() + ","
+                + message.getSrcId() + ","
+                + message.getMsg();
+        Map<String, ClientService> map = registry.snapshotOnlineClients();
+        for (Map.Entry<String, ClientService> entry : map.entrySet()) {
+            if (!entry.getKey().equals(message.getSrcId())) {
+                if (!entry.getValue().send(toSend)) {
+                    recordDrop(entry.getKey());
+                } else {
+                    reportTail(entry.getKey());
+                }
+            }
+        }
     }
 
     private void recordDrop(String dstId) {

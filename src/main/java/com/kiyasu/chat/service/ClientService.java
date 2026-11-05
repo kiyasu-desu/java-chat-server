@@ -1,11 +1,14 @@
 package com.kiyasu.chat.service;
 
-import com.kiyasu.chat.entity.*;
-import lombok.extern.slf4j.Slf4j;
 import com.kiyasu.chat.common.Constant;
+import com.kiyasu.chat.entity.Message;
+import com.kiyasu.chat.entity.Order;
+import com.kiyasu.chat.entity.Response;
+import com.kiyasu.chat.entity.Result;
 import com.kiyasu.chat.service.impl.MessageServiceImpl;
 import com.kiyasu.chat.service.impl.OrderServiceImpl;
 import com.kiyasu.chat.util.OnlineRegistryUtil;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
 import java.net.Socket;
@@ -183,106 +186,109 @@ public class ClientService implements AutoCloseable, Runnable {
             response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
             result.setResult(Constant.ResultType.FAIL);
             result.setInfo("命令解析错误");
-            response.setInfo(result);
-            return response;
-        }
-
-        switch (order.getOrder()) {
-            //注册
-            case REGISTER_REQ -> {
-                response.setOrderType(Constant.ServerOrder.REGISTER_RES);
-                String[] params = order.getContent().split(",");
-                if (params.length != 2) {
-                    log.warn("注册请求参数错误: {}", order.getContent());
-                    result.setResult(Constant.ResultType.FAIL);
-                    result.setInfo("注册请求参数错误");
-                } else {
-                    result = accountService.register(params[0].trim(), params[1].trim());
-                }
-            }
-
-            //登录
-            case LOGIN_REQ -> {
-                if (isLogin()) {
-                    log.warn("登录请求失败: 用户 {} 已登录", userId);
-                    response.setOrderType(Constant.ServerOrder.LOGIN_RES);
-                    result.setResult(Constant.ResultType.FAIL);
-                    result.setInfo("登录请求失败: 用户已登录");
-                    response.setInfo(result);
-                    return response;
-                }
-                response.setOrderType(Constant.ServerOrder.LOGIN_RES);
-                String[] params = order.getContent().split(",");
-                if (params.length != 2) {
-                    log.warn("登录请求参数错误: {}", order.getContent());
-                    result.setResult(Constant.ResultType.FAIL);
-                    result.setInfo("登录请求参数错误");
-                } else {
-                    result = login(params[0].trim(), params[1].trim());
-                }
-            }
-
-            //登出
-            case LOGOUT_REQ -> {
-                if (!isLogin()) {
-                    log.warn("登出请求失败: 用户未登录");
-                    response.setOrderType(Constant.ServerOrder.LOGOUT_RES);
-                    result.setResult(Constant.ResultType.FAIL);
-                    result.setInfo("登出请求失败: 用户未登录");
-                    response.setInfo(result);
-                    return response;
-                }
-                response.setOrderType(Constant.ServerOrder.LOGOUT_RES);
-                String id = order.getContent();
-
-                if (id == null || id.isBlank()) {
-                    log.warn("登出请求参数错误: {}", order.getContent());
-                    result.setResult(Constant.ResultType.FAIL);
-                    result.setInfo("登出请求参数错误");
-                } else if (!userId.equals(id.trim())) {
-                    log.warn("登出请求参数错误: 用户 {} 试图登出用户 {}", userId, id);
-                    result.setResult(Constant.ResultType.FAIL);
-                    result.setInfo("登出请求参数错误: 无权登出其他用户");
-                } else {
-                    result = logout(id.trim());
-                    if (result.getResult() == Constant.ResultType.SUCCESS) {
-                        userId = null;
+        } else {
+            switch (order.getOrder()) {
+                //注册 001
+                case REGISTER_REQ -> {
+                    response.setOrderType(Constant.ServerOrder.REGISTER_RES);
+                    String[] params = order.getContent().split(",");
+                    if (params.length != 2) {
+                        log.warn("注册请求参数错误: {}", order.getContent());
+                        result.setResult(Constant.ResultType.FAIL);
+                        result.setInfo("注册请求参数错误");
+                    } else {
+                        result = accountService.register(params[0].trim(), params[1].trim());
                     }
                 }
-            }
 
-            //搜索在线
-            case FIND_REQ -> {
-                response.setOrderType(Constant.ServerOrder.FIND_RES);
-                List<String> ids = search();
-                result.setResult(Constant.ResultType.SUCCESS);
-                if (ids != null) {
-                    result.setInfo(ids.isEmpty() ? "当前没有在线用户" : String.join(",", ids));
+                //登录 002
+                case LOGIN_REQ -> {
+                    if (isLogin()) {
+                        log.warn("登录请求失败: 用户 {} 已登录", userId);
+                        response.setOrderType(Constant.ServerOrder.LOGIN_RES);
+                        result.setResult(Constant.ResultType.FAIL);
+                        result.setInfo("登录请求失败: 用户已登录");
+                    } else {
+                        response.setOrderType(Constant.ServerOrder.LOGIN_RES);
+                        String[] params = order.getContent().split(",");
+                        if (params.length != 2) {
+                            log.warn("登录请求参数错误: {}", order.getContent());
+                            result.setResult(Constant.ResultType.FAIL);
+                            result.setInfo("登录请求参数错误");
+                        } else {
+                            result = login(params[0].trim(), params[1].trim());
+                        }
+                    }
                 }
-            }
 
-            //发消息
-            case SEND_MSG_REQ -> {
-                if (!isLogin()) {
-                    log.warn("发送消息请求失败: 用户未登录");
+                //登出 003
+                case LOGOUT_REQ -> {
+                    if (!isLogin()) {
+                        log.warn("登出请求失败: 用户未登录");
+                        response.setOrderType(Constant.ServerOrder.LOGOUT_RES);
+                        result.setResult(Constant.ResultType.FAIL);
+                        result.setInfo("登出请求失败: 用户未登录");
+                    } else {
+                        response.setOrderType(Constant.ServerOrder.LOGOUT_RES);
+                        String id = order.getContent();
+
+                        if (id == null || id.isBlank()) {
+                            log.warn("登出请求参数错误: {}", order.getContent());
+                            result.setResult(Constant.ResultType.FAIL);
+                            result.setInfo("登出请求参数错误");
+                        } else if (!userId.equals(id.trim())) {
+                            log.warn("登出请求参数错误: 用户 {} 试图登出用户 {}", userId, id);
+                            result.setResult(Constant.ResultType.FAIL);
+                            result.setInfo("登出请求参数错误: 无权登出其他用户");
+                        } else {
+                            result = logout(id.trim());
+                            if (result.getResult() == Constant.ResultType.SUCCESS) {
+                                userId = null;
+                            }
+                        }
+                    }
+                }
+
+                //搜索在线 004
+                case FIND_REQ -> {
+                    response.setOrderType(Constant.ServerOrder.FIND_RES);
+                    List<String> ids = search();
+                    result.setResult(Constant.ResultType.SUCCESS);
+                    if (ids != null) {
+                        result.setInfo(ids.isEmpty() ? "当前没有在线用户" : String.join(",", ids));
+                    }
+                }
+
+                //发消息 005
+                case SEND_MSG_REQ -> {
+                    if (!isLogin()) {
+                        log.warn("发送消息请求失败: 用户未登录");
+                        response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
+                        result.setResult(Constant.ResultType.FAIL);
+                        result.setInfo("发送消息请求失败: 用户未登录");
+                    } else {
+                        response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
+                        MessageService messageService = new MessageServiceImpl();
+                        Message message = messageService.splitMessage(order.getContent());
+                        if (null == message) {
+                            log.warn("发送消息请求参数错误: {}", order.getContent());
+                            result.setResult(Constant.ResultType.FAIL);
+                            result.setInfo("发送消息请求参数错误");
+                        } else {
+                            result = messageSubmissionService.submit(userId, message);
+                        }
+                    }
+                }
+
+                //群发消息 006
+                case GROUP_MSG_REQ -> {
                     response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
-                    result.setResult(Constant.ResultType.FAIL);
-                    result.setInfo("发送消息请求失败: 用户未登录");
-                    response.setInfo(result);
-                    return response;
-                }
-                response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
-                MessageService messageService = new MessageServiceImpl();
-                Message message = messageService.splitMessage(order.getContent());
-                if (null == message) {
-                    log.warn("发送消息请求参数错误: {}", order.getContent());
-                    result.setResult(Constant.ResultType.FAIL);
-                    result.setInfo("发送消息请求参数错误");
-                } else {
+                    Message message = Message.broadcast(userId, order.getContent());
                     result = messageSubmissionService.submit(userId, message);
                 }
             }
         }
+
         response.setInfo(result);
         return response;
     }

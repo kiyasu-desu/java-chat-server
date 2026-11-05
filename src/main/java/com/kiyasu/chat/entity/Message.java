@@ -16,4 +16,22 @@ public class Message {
     private String dstId;
     //消息
     private String msg;
+    //群发标志
+    private boolean broadcast;
+
+    public Message(String srcId, String dstId, String msg) {
+        this.srcId = srcId;
+        this.dstId = dstId;
+        this.msg = msg;
+        this.broadcast = false;
+    }
+
+    public static Message broadcast(String srcId, String msg) {
+        Message message = new Message();
+        message.setBroadcast(true);
+        message.setSrcId(srcId);
+        message.setDstId(null);
+        message.setMsg(msg);
+        return message;
+    }
 }

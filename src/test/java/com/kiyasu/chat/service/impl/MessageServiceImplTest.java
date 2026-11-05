@@ -68,5 +68,18 @@ public class MessageServiceImplTest {
 
     }
 
+    /**
+     * 测试: 生产 Builder 路径默认单聊
+     */
+    @Test
+    public void normalMessageBroadcastShouldBeFalse() {
+
+        String string = "Alice,Bob,hello";
+        Message message = messageService.splitMessage(string);
+
+        assertFalse(message.isBroadcast());
+
+    }
+
 
 }

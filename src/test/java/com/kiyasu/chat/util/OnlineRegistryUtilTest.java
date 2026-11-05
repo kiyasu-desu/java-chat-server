@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.Map;
 import java.util.concurrent.*;
 
 import static org.junit.Assert.*;
@@ -72,6 +73,70 @@ public class OnlineRegistryUtilTest {
             assertFalse(registry.unregister("Alice", oldClient));
 
             assertSame("旧连接清理不能移除新连接", newClient, registry.getClient("Alice"));
+
+        }
+
+    }
+
+    /**
+     * 已取得引用不因账号换连接被重定向
+     */
+    @Test
+    public void snapshotShouldKeepOriginalConnectionAfterReplacement() throws Exception {
+        OnlineRegistryUtil registry = new OnlineRegistryUtil();
+
+        try (Socket oldSocket = new MemorySocket();
+             Socket newSocket = new MemorySocket();
+             ClientService oldClient = new ClientService(oldSocket, new LinkedBlockingQueue<>(), registry);
+             ClientService newClient = new ClientService(newSocket, new LinkedBlockingQueue<>(), registry)) {
+
+            assertTrue(registry.register("Alice", oldClient));
+
+            Map<String, ClientService> oldMap = registry.snapshotOnlineClients();
+            assertNotNull(oldMap);
+
+            assertSame(oldClient, registry.getClient("Alice"));
+            assertEquals(1, oldMap.size());
+            assertTrue(oldMap.containsKey("Alice"));
+            assertSame(oldClient, oldMap.get("Alice"));
+
+            assertTrue(registry.unregister("Alice", oldClient));
+            assertTrue(registry.register("Alice", newClient));
+
+            Map<String, ClientService> newMap = registry.snapshotOnlineClients();
+            assertNotNull(newMap);
+
+            assertSame(newClient, registry.getClient("Alice"));
+            assertEquals(1, newMap.size());
+            assertTrue(newMap.containsKey("Alice"));
+            assertSame(newClient, newMap.get("Alice"));
+            assertSame(oldClient, oldMap.get("Alice"));
+        }
+    }
+
+    /**
+     * 更改快照不应更改注册表
+     */
+    @Test
+    public void changingSnapshotShouldNotChangeRegistry() throws Exception {
+
+        OnlineRegistryUtil registry = new OnlineRegistryUtil();
+
+        try(Socket socket = new MemorySocket();
+        ClientService client = new ClientService(socket, new LinkedBlockingQueue<>(), registry)) {
+
+            assertTrue(registry.register("Alice", client));
+            Map<String, ClientService> map = registry.snapshotOnlineClients();
+            assertNotNull(map);
+
+            assertSame(client, registry.getClient("Alice"));
+            assertEquals(1, map.size());
+            assertTrue(map.containsKey("Alice"));
+            assertSame(client, map.get("Alice"));
+
+            map.clear();
+
+            assertSame(client, registry.getClient("Alice"));
 
         }
 

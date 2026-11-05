@@ -31,8 +31,8 @@
 - `Server`：绑定 23456 端口，accept 循环将每个连接提交给线程池；关闭时通知发送线程退出。
 - `ClientService`：单个连接的会话编排——读取命令行、解析、调用账号或消息服务、管理在线状态，把响应交给本连接的写线程；不直接访问数据库。
 - `AccountService`：承载用户注册查重、密码摘要、用户写入与登录凭据校验；通过 MyBatis 访问数据库，并返回保持既有协议文案的 `Result`。
-- `MessageSubmissionService`：消息入队的唯一入口，负责身份校验、在线校验和满载拒绝。
-- `SendMsgService`：唯一消费共享消息队列的转发线程，按目标 ID 查注册表并投递。
+- `MessageSubmissionService`：单聊与群发消息入队的唯一入口，负责登录状态与源身份校验、单聊接收者在线校验和队列满载拒绝。
+- `SendMsgService`：唯一消费共享消息队列的转发线程，按 `message.isBroadcast()` 分流：单聊按目标 ID 查注册表投递；群发一次获取在线连接快照，排除发送者后向其余在线连接非阻塞投递。
 - `OnlineRegistryUtil`：在线用户注册表（`ConcurrentHashMap<String, ClientService>`）。
 - `OrderServiceImpl` / `MessageServiceImpl`：纯函数式的协议解析器。
 
@@ -57,7 +57,7 @@
 
 - `register(id, client)` 使用 `putIfAbsent`，**单次原子操作**决定登录成败。两个连接同时登录同一账号时，恰好一个成功；注册成功后才设置 `ClientService` 的 `userId`，失败路径不会污染会话身份。
 - `unregister(id, client)` 使用 `remove(id, client)` 双键校验连接所有权。旧连接（超时、断开）清理时只能移除自己注册的记录，无法误删后继新连接——这解决了"旧连接注销覆盖新登录"的问题（缺陷 1 的另一半）。
-- `getClient` / `isOnline` / `getOnlineIds` 为只读视图；`getOnlineIds` 返回 key 的快照拷贝。
+- `getClient` / `isOnline` / `getOnlineIds` / `snapshotOnlineClients` 为只读查询或快照拷贝：`getOnlineIds` 返回在线 ID 列表拷贝；`snapshotOnlineClients` 返回 `Map<String, ClientService>` 的独立浅拷贝（供群发转发遍历，修改返回 Map 不影响注册表结构，且已取得的连接引用不会因同账号重登换连接而被重定向）。
 
 注意：`ConcurrentHashMap` 的单操作原子性不等于组合操作原子性，本项目的正确性依赖"注册用 putIfAbsent、清理用 remove(id, client)"这一约定，而不是 Map 本身。
 
@@ -67,13 +67,15 @@
 
 ### 4.1 共享消息队列（1024）
 
-`MessageSubmissionService.submit(currentUserId, message)` 是唯一入队入口，顺序执行三项检查：
+`MessageSubmissionService.submit(currentUserId, message)` 是唯一入队入口，顺序执行以下检查与分流：
 
-1. **身份校验**：`message.srcId` 必须等于当前连接登录身份，防止伪造发送者；
-2. **在线校验**：接收者不在线直接返回 `接收者离线`；
-3. **满载拒绝**：`offer()` 返回 false 时返回 `服务器繁忙`，**不阻塞**发送线程。
+1. **登录与源身份校验**：`currentUserId` 为 null 时直接返回 `用户未登录`；`message.srcId` 必须等于 `currentUserId`，防止伪造发送者；
+2. **单聊与群发分流（`message.isBroadcast()`）**：
+   - **单聊（`broadcast = false`）**：先检查 `dstId` 是否在线，不在线直接返回 `接收者离线`；在线则向共享队列 `offer`；
+   - **群发（`broadcast = true`）**：跳过单个目标的在线检查，直接将一条广播任务向共享队列 `offer` 一次（满载时整体拒绝，不会发生部分入队）；
+3. **满载拒绝**：`offer()` 返回 false 时返回 `服务器繁忙`，**不阻塞**连接处理线程。
 
-成功时返回 `消息已加入发送队列`。注意语义边界：这只表示消息进入服务端内部队列，**不等于写入 Socket，更不等于对端收到**。
+成功时返回 `消息已加入发送队列`。注意语义边界：这只表示消息进入服务端内部队列，**不等于写入 Socket，更不等于对端收到**。群发消息在 `SendMsgService` 消费时通过 `snapshotOnlineClients()` 取得当次在线连接集合、排除发送者 `srcId` 后逐个调用 `send()`，慢接收者或满载接收者同样由各自的 256 出站队列隔离，并复用按接收者聚合的丢弃日志。
 
 ### 4.2 每连接出站队列（256）
 
@@ -127,6 +129,7 @@ accept → 发欢迎语 → 客户端空行 → 命令循环 ─┬→ 003 登�
 | 重复登录竞态 | `putIfAbsent` 原子注册 | 不加锁；正确性依赖注册表封装，而非调用方约定 |
 | 慢客户端阻塞全局转发 | 每连接写线程 + 256 出站队列 | 多一个线程开销，换取转发线程永不被单个连接卡住 |
 | 消息队列无界 | 1024 共享队列 + offer 满载拒绝 | 过载时丢新消息（返回"服务器繁忙"），不做等待或持久化 |
+| 在线群发扇出 | 共享队列单任务入队 + 转发线程取连接快照扇出 | 提交阶段单次 `offer` 避免部分入队；转发阶段取独立 Map 浅拷贝并按每连接写队列隔离慢接收者，不承诺全表原子时刻快照 |
 | 饱和期丢弃日志刷屏 | 丢弃日志按接收者聚合（首条 + 每 1000 条汇总 + 尾数上报） | 尾数在无后续触发点时，统计状态会保留至该接收者下一次转发处理或转发线程退出；换来自洽的丢弃计数与饱和期可读日志 |
 | 发送线程退出 | 停止标志 + Server 中断 | 收到中断即退出，不承诺排空；完整优雅关闭未实现 |
 | 失联连接堆积 | 60 秒读空闲超时 | 只覆盖读路径；区分断开、空闲与网络不可达需结合日志 |
@@ -134,18 +137,20 @@ accept → 发欢迎语 → 客户端空行 → 命令循环 ─┬→ 003 登�
 
 ## 9. 已验证行为与边界
 
-自动化测试（`mvn test`，27 项，全部不依赖数据库）：
+自动化测试（`mvn test`，43 项，全部不依赖数据库）：
 
 | 测试类 | 数量 | 验证目标 |
 |---|---|---|
-| `OnlineRegistryUtilTest` | 2 | putIfAbsent 只允许一个并发登录；旧连接清理不影响新连接 |
-| `MessageSubmissionServiceTest` | 5 | 满载限时拒绝、身份不匹配拒绝、离线拒绝、成功恰好入队一次、日志上下文回归 |
-| `SendMsgServiceTest` | 3 | 慢客户端写阻塞时其他用户正常收发；满队列拒绝；关闭排空与写线程退出 |
+| `MessageTest` | 3 | 三参数构造器默认单聊；`Message.broadcast` 群发标志、null 目标与含逗号/空正文保留 |
+| `OnlineRegistryUtilTest` | 4 | putIfAbsent 只允许一个并发登录；旧连接清理不影响新连接；在线连接快照结构隔离与连接替换后原快照保持 |
+| `MessageSubmissionServiceTest` | 9 | 单聊与群发满载限时拒绝、未登录拒绝、身份不匹配拒绝、单聊离线拒绝、成功恰好入队一次、日志上下文回归 |
+| `SendMsgServiceTest` | 6 | 慢客户端写阻塞时单聊与群发其他用户正常收发；群发扇出且不回显发送者；仅发送者在线边界；满队列拒绝；关闭排空与写线程退出 |
+| `ClientServiceBroadcastCommandTest` | 2 | 已登录 `006` 群发命令入队与 ACK（含逗号与空正文）；未登录 `006` 群发命令拒绝（真实 loopback TCP） |
 | `ClientServiceProtocolLineEndingTest` | 1 | 服务端协议输出固定 LF、原始字节无 `\r`（真实 loopback TCP） |
 | `SendMsgServiceDropLogAggregationTest` | 3 | 丢弃日志按接收者聚合：首条、1000 条汇总、恢复 / 转发线程退出 / 离线尾数 |
 | `ClientServiceReadTimeoutTest` | 3 | 读空闲超时清理；EOF 清理；正常活动不超时且保持在线 |
-| `OrderServiceImplTest` | 6 | 命令解析的正常、边界与异常输入 |
-| `MessageServiceImplTest` | 4 | 消息字段映射、正文逗号保留、空正文、字段不足 |
+| `OrderServiceImplTest` | 7 | 命令解析的正常（含 `006` 群发命令）、边界与异常输入 |
+| `MessageServiceImplTest` | 5 | 消息字段映射、正文逗号保留、空正文、默认单聊标志、字段不足 |
 
 手工与端到端验证：注册 / 重复注册 / 登录 / 错误密码 / 重复登录 / 在线查询 / 含逗号消息转发 / 登出 / 离线列表更新；双实例端口冲突退出；读超时约 60 秒生效；端到端登出响应送达、断连后写线程 0 残留。AccountService 的重复注册补验使用两个独立 TCP 连接与真实 MySQL，第二次返回 `101,FAIL,用户ID已存在`。
 
