@@ -6,7 +6,7 @@
 
 - 用户注册 / 登录 / 登出（AccountService 承载注册与凭据校验，密码 MD5 摘要存储，MyBatis + MySQL）
 - 在线用户查询
-- 点对点私信转发（消息正文支持逗号）
+- 点对点私信与在线群发转发（消息正文支持逗号，群发不回显给发送者）
 - 并发登录防护：同一账号同时只允许一个连接在线
 - 每连接独立写线程 + 有界出站队列，隔离慢客户端，避免阻塞全局转发
 - 共享消息队列有界（1024），满载时快速拒绝
@@ -77,6 +77,9 @@ S: 104,SUCCESS,Alice,Bob
 C: 005,Alice,Bob,hello,world
 S: 000,SUCCESS,消息已加入发送队列
 （Bob 连接收到）106,Alice,Bob,hello,world
+C: 006,hello,everyone
+S: 000,SUCCESS,消息已加入发送队列
+（Bob 连接收到）105,Alice,hello,everyone
 C: 003,Alice
 S: 103,SUCCESS,登出成功
 ```
@@ -94,6 +97,7 @@ S: 103,SUCCESS,登出成功
 | 003 | 登出 | `003,<id>` | 只能登出当前连接自己的账号 |
 | 004 | 查询在线用户 | `004` | 命令码后内容被忽略 |
 | 005 | 发送私信 | `005,<src>,<dst>,<message>` | `<message>` 中的逗号全部保留；src 必须与登录身份一致 |
+| 006 | 发送群发消息 | `006,<message>` | 发送者取自当前登录会话；`<message>` 中的逗号全部保留 |
 
 命令码解析时仅对命令码本身去除首尾空白；未知命令码不会断开连接，返回错误响应。
 
@@ -105,9 +109,9 @@ S: 103,SUCCESS,登出成功
 | 102 | 登录结果 | `102,SUCCESS\|FAIL,<说明>` |
 | 103 | 登出结果 | `103,SUCCESS\|FAIL,<说明>` |
 | 104 | 在线用户列表 | `104,SUCCESS,<id1,id2,...>`；无在线用户时为 `104,SUCCESS,当前没有在线用户` |
-| 105 | 群发消息 | 协议常量已预留，**功能未实现** |
+| 105 | 转发的群发消息 | `105,<src>,<message>`（推送给除发送者外的其他在线用户） |
 | 106 | 转发的私信 | `106,<src>,<dst>,<message>` |
-| 000 | 无意义 / 错误 | 如 `000,FAIL,命令解析错误`、`000,FAIL,接收者离线` |
+| 000 | 通用提交确认 / 错误 | 如 `000,SUCCESS,消息已加入发送队列`、`000,FAIL,命令解析错误`、`000,FAIL,接收者离线` |
 
 命令整体无法解析时（空行、缺少命令码等），返回 `000, 命令格式错误`（注意响应说明文本中的标点为半角逗号加空格）。
 
@@ -129,18 +133,20 @@ S: 103,SUCCESS,登出成功
 mvn test
 ```
 
-共 27 项自动化测试，**不需要启动 MySQL**：其中 `ClientServiceReadTimeoutTest` 的 3 项与 `ClientServiceProtocolLineEndingTest` 的 1 项测试使用真实的 loopback TCP 连接，需要允许绑定和连接本机临时端口；其余测试使用内存 Socket 或直接调用接口。
+共 43 项自动化测试，**不需要启动 MySQL**：其中 `ClientServiceReadTimeoutTest` 的 3 项、`ClientServiceProtocolLineEndingTest` 的 1 项与 `ClientServiceBroadcastCommandTest` 的 2 项测试使用真实的 loopback TCP 连接，需要允许绑定和连接本机临时端口；其余测试使用内存 Socket 或直接调用接口。
 
 | 测试类 | 数量 | 覆盖内容 |
 |---|---|---|
-| `OnlineRegistryUtilTest` | 2 | 并发登录只允许一个连接；旧连接注销不影响新连接 |
-| `MessageSubmissionServiceTest` | 5 | 满载拒绝、身份不匹配、接收者离线、入队成功、日志上下文回归 |
-| `SendMsgServiceTest` | 3 | 慢客户端不阻塞其他用户收发、满队列拒绝、关闭排空与写线程退出 |
+| `MessageTest` | 3 | 消息构造器默认单聊与群发静态工厂契约（含逗号与空正文） |
+| `OnlineRegistryUtilTest` | 4 | 并发登录只允许一个连接；旧连接注销不影响新连接；在线连接快照隔离与连接替换后原快照保持 |
+| `MessageSubmissionServiceTest` | 9 | 单聊与群发的满载拒绝、未登录拒绝、身份不匹配、接收者离线、入队成功、日志上下文回归 |
+| `SendMsgServiceTest` | 6 | 慢客户端不阻塞单聊与群发收发、群发扇出且不回显发送者、仅发送者在线边界、满队列拒绝、关闭排空与写线程退出 |
+| `ClientServiceBroadcastCommandTest` | 2 | 已登录群发命令入队与 ACK（含逗号与空正文）、未登录群发命令拒绝 |
 | `ClientServiceReadTimeoutTest` | 3 | 读空闲超时清理、客户端正常断开（EOF）、正常活动保持在线 |
 | `ClientServiceProtocolLineEndingTest` | 1 | 原始字节验证固定 LF 行尾与 CRLF 请求兼容 |
 | `SendMsgServiceDropLogAggregationTest` | 3 | 首条与每 1000 条汇总，以及恢复、离线、退出时的尾数上报 |
-| `OrderServiceImplTest` | 6 | 命令解析正常、边界与异常输入 |
-| `MessageServiceImplTest` | 4 | 消息字段解析，含正文逗号保留与字段不足 |
+| `OrderServiceImplTest` | 7 | 命令解析正常（含 `006` 群发命令）、边界与异常输入 |
+| `MessageServiceImplTest` | 5 | 消息字段解析，含正文逗号保留、默认单聊标志与字段不足 |
 
 ## 实测与验证边界
 
@@ -162,6 +168,6 @@ AccountService 拆分后的端到端验证已覆盖注册、重复注册、错�
 - **入队成功不等于送达**："消息已加入发送队列"仅表示消息进入服务端内部队列；目标连接出站队列满时消息会被丢弃。
 - 面向小规模演示场景：固定 30 个连接处理线程、单转发线程，未针对大量活跃连接设计；上述吞吐与延迟仅是同机 loopback 观测值。
 - 服务端没有完整的优雅关闭流程；发送线程收到中断即退出，不保证关闭前排空队列。
-- 群发消息（105）仅有协议常量，功能未实现；消息不做离线持久化，接收者离线即失败。
+- 消息不做离线持久化：单聊接收者离线即返回失败；群发仅投递给转发时刻在线的其他用户。
 - Java 端数据库配置仍读取 `src/main/resources/mysql.properties`，未改为读取环境变量。
 - 密码使用 MD5 摘要存储；生产场景应使用 BCrypt 等自适应哈希。
