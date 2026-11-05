@@ -20,6 +20,9 @@ import static org.junit.Assert.*;
 
 public class SendMsgServiceTest {
 
+    /**
+     * close 应排空排队的响应并停止写入
+     */
     @Test
     public void closeShouldDrainQueuedResponseAndStopWriter() throws IOException, InterruptedException {
 
@@ -39,6 +42,9 @@ public class SendMsgServiceTest {
 
     }
 
+    /**
+     * 当出站队列已满时，send 应快速失败
+     */
     @Test(timeout = 1000)
     public void sendShouldFailFastWhenOutboundQueueIsFull() throws IOException, InterruptedException {
 
@@ -66,9 +72,11 @@ public class SendMsgServiceTest {
 
         }
 
-
     }
 
+    /**
+     * 慢客户端不应阻塞其他客户端
+     */
     @Test
     public void slowClientShouldNotBlockOtherClient() throws Exception {
 
@@ -105,12 +113,168 @@ public class SendMsgServiceTest {
                     bobSocket.getWrittenText().trim());
 
         } finally {
+            sendMsgService.shutdown();
+            singleThreadExecutor.shutdownNow();
+        }
+        assertTrue(singleThreadExecutor.awaitTermination(2, TimeUnit.SECONDS));
+    }
+
+    /**
+     * 群发消息应送达其他在线用户，且不回显给发送者
+     */
+    @Test
+    public void broadcastShouldReachOtherOnlineClientsWithoutEchoingSender() throws Exception {
+
+        LinkedBlockingQueue<Message> queue = new LinkedBlockingQueue<>(10);
+        OnlineRegistryUtil registry = new OnlineRegistryUtil();
+        SendMsgService sendMsgService = new SendMsgService(queue, registry);
+        ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
+
+        try (RecordingSocket bobSocket = new RecordingSocket();
+             RecordingSocket aliceSocket = new RecordingSocket();
+             RecordingSocket charlieSocket = new RecordingSocket();
+             ClientService bobClient = new ClientService(bobSocket, new LinkedBlockingQueue<>(), registry);
+             ClientService aliceClient = new ClientService(aliceSocket, new LinkedBlockingQueue<>(), registry);
+             ClientService charlieClient = new ClientService(charlieSocket, new LinkedBlockingQueue<>(), registry)) {
+
+            assertTrue(registry.register("Bob", bobClient));
+            assertTrue(registry.register("Alice", aliceClient));
+            assertTrue(registry.register("Charlie", charlieClient));
+
+            assertTrue(queue.add(Message.broadcast("Alice", "hello,world")));
+            assertTrue(queue.add(new Message("Probe", "Alice", "broadcast-processed")));
+
+            Future<?> submitFuture = singleThreadExecutor.submit(sendMsgService);
+            String markerLine = Constant.ServerOrder.MSG_RES.getOrderNo()
+                    + ",Probe,Alice,broadcast-processed\n";
+            awaitUntil(() -> aliceSocket.getWrittenText().contains(markerLine)
+                    || submitFuture.isDone(), 2000);
+
+            if (submitFuture.isDone()) {
+                submitFuture.get(1, TimeUnit.SECONDS);
+            }
+            assertTrue("未在超时时间内收到广播处理完成标记", aliceSocket.getWrittenText().contains(markerLine));
 
             sendMsgService.shutdown();
             singleThreadExecutor.shutdownNow();
 
+            assertNull(submitFuture.get(2, TimeUnit.SECONDS));
+            assertTrue(singleThreadExecutor.awaitTermination(2, TimeUnit.SECONDS));
+
+            bobClient.close();
+            aliceClient.close();
+            charlieClient.close();
+
+            assertEquals(List.of("106,Probe,Alice,broadcast-processed"), aliceSocket.getWrittenText().lines().toList());
+            assertEquals(List.of("105,Alice,hello,world"), bobSocket.getWrittenText().lines().toList());
+            assertEquals(List.of("105,Alice,hello,world"), charlieSocket.getWrittenText().lines().toList());
+
+        } finally {
+            sendMsgService.shutdown();
+            singleThreadExecutor.shutdownNow();
         }
 
+    }
+
+    /**
+     * 慢接收者或满载接收者不阻塞其他群发接收者
+     */
+    @Test
+    public void slowBroadcastReceiverShouldNotBlockOtherOnlineClient() throws Exception {
+
+        LinkedBlockingQueue<Message> queue = new LinkedBlockingQueue<>(10);
+        OnlineRegistryUtil registry = new OnlineRegistryUtil();
+        SendMsgService sendMsgService = new SendMsgService(queue, registry);
+        ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
+
+        try (BlockingSocket bobSocket = new BlockingSocket();
+             RecordingSocket aliceSocket = new RecordingSocket();
+             RecordingSocket charlieSocket = new RecordingSocket();
+             ClientService bobClient = new ClientService(bobSocket, new LinkedBlockingQueue<>(), registry);
+             ClientService aliceClient = new ClientService(aliceSocket, new LinkedBlockingQueue<>(), registry);
+             ClientService charlieClient = new ClientService(charlieSocket, new LinkedBlockingQueue<>(), registry)) {
+
+            assertTrue(registry.register("Bob", bobClient));
+            assertTrue(registry.register("Alice", aliceClient));
+            assertTrue(registry.register("Charlie", charlieClient));
+
+            assertTrue(queue.add(Message.broadcast("Alice", "hello,world")));
+            assertTrue(queue.add(new Message("Probe", "Alice", "broadcast-processed")));
+
+            Future<?> submitFuture = singleThreadExecutor.submit(sendMsgService);
+
+            assertTrue(bobSocket.awaitWriteEntered(1, TimeUnit.SECONDS));
+            assertTrue(charlieSocket.awaitMessage(1, TimeUnit.SECONDS));
+
+            String markerLine = Constant.ServerOrder.MSG_RES.getOrderNo()
+                    + ",Probe,Alice,broadcast-processed\n";
+            awaitUntil(() -> aliceSocket.getWrittenText().contains(markerLine)
+                    || submitFuture.isDone(), 2000);
+
+            if (submitFuture.isDone()) {
+                submitFuture.get(1, TimeUnit.SECONDS);
+            }
+            assertTrue("未在超时时间内收到广播处理完成标记", aliceSocket.getWrittenText().contains(markerLine));
+
+            assertEquals(List.of("105,Alice,hello,world"), charlieSocket.getWrittenText().lines().toList());
+            assertEquals(List.of("106,Probe,Alice,broadcast-processed"), aliceSocket.getWrittenText().lines().toList());
+            assertTrue(bobSocket.getWrittenText().isEmpty());
+
+            bobSocket.release();
+            assertTrue(bobSocket.awaitMessage(1, TimeUnit.SECONDS));
+            assertEquals(List.of("105,Alice,hello,world"), bobSocket.getWrittenText().lines().toList());
+
+        } finally {
+            sendMsgService.shutdown();
+            singleThreadExecutor.shutdownNow();
+        }
+        assertTrue(singleThreadExecutor.awaitTermination(2, TimeUnit.SECONDS));
+
+    }
+
+    /**
+     * 仅发送者自己在线时群发不回显且不抛异常
+     */
+    @Test
+    public void broadcastWhenOnlySenderOnlineShouldNotEchoOrFail() throws Exception{
+
+        LinkedBlockingQueue<Message> queue = new LinkedBlockingQueue<>(10);
+        OnlineRegistryUtil registry = new OnlineRegistryUtil();
+        SendMsgService sendMsgService = new SendMsgService(queue, registry);
+        ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
+
+        try (RecordingSocket aliceSocket = new RecordingSocket();
+             ClientService aliceClient = new ClientService(aliceSocket, new LinkedBlockingQueue<>(), registry)) {
+
+            assertTrue(registry.register("Alice", aliceClient));
+            assertTrue(queue.add(Message.broadcast("Alice", "Hello,world")));
+            assertTrue(queue.add(new Message("Probe", "Alice", "broadcast-processed")));
+
+            Future<?> submitFuture = singleThreadExecutor.submit(sendMsgService);
+
+            String markerLine = Constant.ServerOrder.MSG_RES.getOrderNo()
+                    + ",Probe,Alice,broadcast-processed\n";
+            awaitUntil(() -> aliceSocket.getWrittenText().contains(markerLine)
+                    || submitFuture.isDone(), 2000);
+
+            if (submitFuture.isDone()) {
+                submitFuture.get(1, TimeUnit.SECONDS);
+            }
+            assertTrue("未在超时时间内收到广播处理完成标记", aliceSocket.getWrittenText().contains(markerLine));
+
+            sendMsgService.shutdown();
+            singleThreadExecutor.shutdownNow();
+
+            assertNull(submitFuture.get(2, TimeUnit.SECONDS));
+            assertTrue(singleThreadExecutor.awaitTermination(2, TimeUnit.SECONDS));
+
+            aliceClient.close();
+            assertEquals(List.of("106,Probe,Alice,broadcast-processed"), aliceSocket.getWrittenText().lines().toList());
+
+        } finally {
+            sendMsgService.shutdown();
+            singleThreadExecutor.shutdownNow();
+        }
         assertTrue(singleThreadExecutor.awaitTermination(2, TimeUnit.SECONDS));
 
 
