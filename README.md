@@ -133,7 +133,7 @@ S: 103,SUCCESS,登出成功
 mvn test
 ```
 
-共 43 项自动化测试，**不需要启动 MySQL**：其中 `ClientServiceReadTimeoutTest` 的 3 项、`ClientServiceProtocolLineEndingTest` 的 1 项与 `ClientServiceBroadcastCommandTest` 的 2 项测试使用真实的 loopback TCP 连接，需要允许绑定和连接本机临时端口；其余测试使用内存 Socket 或直接调用接口。
+共 44 项自动化测试，**不需要启动 MySQL**：其中 `ClientServiceReadTimeoutTest` 的 3 项、`ClientServiceProtocolLineEndingTest` 的 1 项与 `ClientServiceBroadcastCommandTest` 的 2 项测试使用真实的 loopback TCP 连接，需要允许绑定和连接本机临时端口；其余测试使用内存 Socket 或直接调用接口。
 
 | 测试类 | 数量 | 覆盖内容 |
 |---|---|---|
@@ -141,12 +141,12 @@ mvn test
 | `OnlineRegistryUtilTest` | 4 | 并发登录只允许一个连接；旧连接注销不影响新连接；在线连接快照隔离与连接替换后原快照保持 |
 | `MessageSubmissionServiceTest` | 9 | 单聊与群发的满载拒绝、未登录拒绝、身份不匹配、接收者离线、入队成功、日志上下文回归 |
 | `SendMsgServiceTest` | 6 | 慢客户端不阻塞单聊与群发收发、群发扇出且不回显发送者、仅发送者在线边界、满队列拒绝、关闭排空与写线程退出 |
-| `ClientServiceBroadcastCommandTest` | 2 | 已登录群发命令入队与 ACK（含逗号与空正文）、未登录群发命令拒绝 |
+| `ClientServiceBroadcastCommandTest` | 2 | 已登录群发命令入队与 ACK（含逗号、`006,` 空正文与 `006` 缺省参数拒绝）、未登录群发命令拒绝 |
 | `ClientServiceReadTimeoutTest` | 3 | 读空闲超时清理、客户端正常断开（EOF）、正常活动保持在线 |
 | `ClientServiceProtocolLineEndingTest` | 1 | 原始字节验证固定 LF 行尾与 CRLF 请求兼容 |
 | `SendMsgServiceDropLogAggregationTest` | 3 | 首条与每 1000 条汇总，以及恢复、离线、退出时的尾数上报 |
-| `OrderServiceImplTest` | 7 | 命令解析正常（含 `006` 群发命令）、边界与异常输入 |
-| `MessageServiceImplTest` | 5 | 消息字段解析，含正文逗号保留、默认单聊标志与字段不足 |
+| `OrderServiceImplTest` | 8 | 命令解析正常（含 `006` 群发命令）、无逗号 `null` 与带逗号空串边界、异常输入 |
+| `MessageServiceImplTest` | 5 | 消息字段解析，含正文逗号保留、默认单聊标志、`null` 输入与字段不足 |
 
 ## 实测与验证边界
 

@@ -112,9 +112,8 @@ accept → 发欢迎语 → 客户端空行 → 命令循环 ─┬→ 003 登�
 
 ## 6. 协议解析语义
 
-- `OrderServiceImpl.splitOrder`：`split(",", 2)`，只对命令码 trim，剩余部分整体保留为 content。空串 / null / 空白命令码返回 null；只有命令码时 content 为空串；未知命令码返回 `order=null` 的 Order 对象，由 `ClientService` 转为 `000,FAIL,命令解析错误`。
-- `MessageServiceImpl.splitMessage`：`split(",", 3)`，正文中的后续逗号全部保留；不足 3 段返回 null；`Alice,Bob,` 会得到空正文消息（字段是否为空由后续业务判断，解析器不校验）。
-- `splitMessage(null)` 会抛 NPE，但现有调用链上 content 来自 `splitOrder`，不为 null，该输入不可达，未锁定为协议契约。
+- `OrderServiceImpl.splitOrder`：`split(",", 2)`，只对命令码 trim，剩余部分整体保留为 content。空串 / null / 空白命令码返回 null；只有命令码（未出现逗号，如 `004`、`006`）时 `content` 为 `null`，带逗号但后续为空（如 `006,`）时 `content` 为空串 `""`，以此区分缺省参数与空字符串参数；未知命令码返回 `order=null` 的 Order 对象，由 `ClientService` 转为 `000,FAIL,命令解析错误`。
+- `MessageServiceImpl.splitMessage`：对 `null` 输入或 `split(",", 3)` 不足 3 段的输入记录 WARN 并返回 `null`；正文中的后续逗号全部保留；`Alice,Bob,` 会得到空正文消息（字段是否为空由后续业务判断，解析器不校验）。
 
 ## 7. 数据访问
 
@@ -137,7 +136,7 @@ accept → 发欢迎语 → 客户端空行 → 命令循环 ─┬→ 003 登�
 
 ## 9. 已验证行为与边界
 
-自动化测试（`mvn test`，43 项，全部不依赖数据库）：
+自动化测试（`mvn test`，44 项，全部不依赖数据库）：
 
 | 测试类 | 数量 | 验证目标 |
 |---|---|---|
@@ -145,12 +144,12 @@ accept → 发欢迎语 → 客户端空行 → 命令循环 ─┬→ 003 登�
 | `OnlineRegistryUtilTest` | 4 | putIfAbsent 只允许一个并发登录；旧连接清理不影响新连接；在线连接快照结构隔离与连接替换后原快照保持 |
 | `MessageSubmissionServiceTest` | 9 | 单聊与群发满载限时拒绝、未登录拒绝、身份不匹配拒绝、单聊离线拒绝、成功恰好入队一次、日志上下文回归 |
 | `SendMsgServiceTest` | 6 | 慢客户端写阻塞时单聊与群发其他用户正常收发；群发扇出且不回显发送者；仅发送者在线边界；满队列拒绝；关闭排空与写线程退出 |
-| `ClientServiceBroadcastCommandTest` | 2 | 已登录 `006` 群发命令入队与 ACK（含逗号与空正文）；未登录 `006` 群发命令拒绝（真实 loopback TCP） |
+| `ClientServiceBroadcastCommandTest` | 2 | 已登录 `006` 群发命令入队与 ACK（含逗号、`006,` 空正文与 `006` 缺省参数拒绝）；未登录 `006` 群发命令拒绝（真实 loopback TCP） |
 | `ClientServiceProtocolLineEndingTest` | 1 | 服务端协议输出固定 LF、原始字节无 `\r`（真实 loopback TCP） |
 | `SendMsgServiceDropLogAggregationTest` | 3 | 丢弃日志按接收者聚合：首条、1000 条汇总、恢复 / 转发线程退出 / 离线尾数 |
 | `ClientServiceReadTimeoutTest` | 3 | 读空闲超时清理；EOF 清理；正常活动不超时且保持在线 |
-| `OrderServiceImplTest` | 7 | 命令解析的正常（含 `006` 群发命令）、边界与异常输入 |
-| `MessageServiceImplTest` | 5 | 消息字段映射、正文逗号保留、空正文、默认单聊标志、字段不足 |
+| `OrderServiceImplTest` | 8 | 命令解析的正常（含 `006` 群发命令）、无逗号 `null` 与带逗号空串边界、异常输入 |
+| `MessageServiceImplTest` | 5 | 消息字段映射、正文逗号保留、空正文、默认单聊标志、`null` 输入与字段不足 |
 
 手工与端到端验证：注册 / 重复注册 / 登录 / 错误密码 / 重复登录 / 在线查询 / 含逗号消息转发 / 登出 / 离线列表更新；双实例端口冲突退出；读超时约 60 秒生效；端到端登出响应送达、断连后写线程 0 残留。AccountService 的重复注册补验使用两个独立 TCP 连接与真实 MySQL，第二次返回 `101,FAIL,用户ID已存在`。
 
