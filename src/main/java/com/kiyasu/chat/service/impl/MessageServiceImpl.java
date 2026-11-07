@@ -1,13 +1,17 @@
 package com.kiyasu.chat.service.impl;
 
-import lombok.extern.slf4j.Slf4j;
 import com.kiyasu.chat.entity.Message;
 import com.kiyasu.chat.service.MessageService;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class MessageServiceImpl implements MessageService {
     @Override
     public Message splitMessage(String str) {
+        if (null == str) {
+            log.warn("消息信息为空");
+            return null;
+        }
         String[] split = str.split(",", 3);
         if (split.length < 3) {
             log.warn("消息格式错误: {}", str);
