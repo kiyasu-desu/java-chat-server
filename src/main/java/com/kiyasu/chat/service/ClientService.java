@@ -191,45 +191,55 @@ public class ClientService implements AutoCloseable, Runnable {
                 //注册 001
                 case REGISTER_REQ -> {
                     response.setOrderType(Constant.ServerOrder.REGISTER_RES);
-                    String[] params = order.getContent().split(",");
-                    if (params.length != 2) {
-                        log.warn("注册请求参数错误: {}", order.getContent());
+                    if (null == order.getContent()) {
+                        log.warn("注册请求参数为空");
                         result.setResult(Constant.ResultType.FAIL);
-                        result.setInfo("注册请求参数错误");
+                        result.setInfo("注册请求参数为空");
                     } else {
-                        result = accountService.register(params[0].trim(), params[1].trim());
+                        String[] params = order.getContent().split(",");
+                        if (params.length != 2) {
+                            log.warn("注册请求参数错误: {}", order.getContent());
+                            result.setResult(Constant.ResultType.FAIL);
+                            result.setInfo("注册请求参数错误");
+                        } else {
+                            result = accountService.register(params[0].trim(), params[1].trim());
+                        }
                     }
                 }
 
                 //登录 002
                 case LOGIN_REQ -> {
+                    response.setOrderType(Constant.ServerOrder.LOGIN_RES);
                     if (isLogin()) {
                         log.warn("登录请求失败: 用户 {} 已登录", userId);
-                        response.setOrderType(Constant.ServerOrder.LOGIN_RES);
                         result.setResult(Constant.ResultType.FAIL);
                         result.setInfo("登录请求失败: 用户已登录");
                     } else {
-                        response.setOrderType(Constant.ServerOrder.LOGIN_RES);
-                        String[] params = order.getContent().split(",");
-                        if (params.length != 2) {
-                            log.warn("登录请求参数错误: {}", order.getContent());
+                        if (null == order.getContent()) {
+                            log.warn("登录请求参数为空");
                             result.setResult(Constant.ResultType.FAIL);
-                            result.setInfo("登录请求参数错误");
+                            result.setInfo("登录请求参数为空");
                         } else {
-                            result = login(params[0].trim(), params[1].trim());
+                            String[] params = order.getContent().split(",");
+                            if (params.length != 2) {
+                                log.warn("登录请求参数错误: {}", order.getContent());
+                                result.setResult(Constant.ResultType.FAIL);
+                                result.setInfo("登录请求参数错误");
+                            } else {
+                                result = login(params[0].trim(), params[1].trim());
+                            }
                         }
                     }
                 }
 
                 //登出 003
                 case LOGOUT_REQ -> {
+                    response.setOrderType(Constant.ServerOrder.LOGOUT_RES);
                     if (!isLogin()) {
                         log.warn("登出请求失败: 用户未登录");
-                        response.setOrderType(Constant.ServerOrder.LOGOUT_RES);
                         result.setResult(Constant.ResultType.FAIL);
                         result.setInfo("登出请求失败: 用户未登录");
                     } else {
-                        response.setOrderType(Constant.ServerOrder.LOGOUT_RES);
                         String id = order.getContent();
 
                         if (id == null || id.isBlank()) {
@@ -261,13 +271,12 @@ public class ClientService implements AutoCloseable, Runnable {
 
                 //发消息 005
                 case SEND_MSG_REQ -> {
+                    response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
                     if (!isLogin()) {
                         log.warn("发送消息请求失败: 用户未登录");
-                        response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
                         result.setResult(Constant.ResultType.FAIL);
                         result.setInfo("发送消息请求失败: 用户未登录");
                     } else {
-                        response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
                         MessageService messageService = new MessageServiceImpl();
                         Message message = messageService.splitMessage(order.getContent());
                         if (null == message) {
@@ -283,8 +292,14 @@ public class ClientService implements AutoCloseable, Runnable {
                 //群发消息 006
                 case GROUP_MSG_REQ -> {
                     response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
-                    Message message = Message.broadcast(userId, order.getContent());
-                    result = messageSubmissionService.submit(userId, message);
+                    if (null == order.getContent()) {
+                        log.warn("群发消息请求参数为空");
+                        result.setResult(Constant.ResultType.FAIL);
+                        result.setInfo("群发消息请求参数为空");
+                    } else {
+                        Message message = Message.broadcast(userId, order.getContent());
+                        result = messageSubmissionService.submit(userId, message);
+                    }
                 }
             }
         }

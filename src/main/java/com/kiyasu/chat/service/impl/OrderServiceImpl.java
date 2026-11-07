@@ -19,7 +19,7 @@ public class OrderServiceImpl implements OrderService {
             return null;
         }
 
-        String content = orderSplit.length > 1 ? orderSplit[1] : "";
+        String content = orderSplit.length > 1 ? orderSplit[1] : null;
 
         try {
             Constant.UserOrder orderType = null;

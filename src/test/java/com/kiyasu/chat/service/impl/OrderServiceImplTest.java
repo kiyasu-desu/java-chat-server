@@ -29,12 +29,26 @@ public class OrderServiceImplTest {
      * 测试: 只有命令码，没有逗号
      */
     @Test
-    public void orderWithoutCommaShouldHaveEmptyContent() {
+    public void orderWithoutCommaShouldHaveNullContent() {
 
         String string = "004";
         Order order = orderService.splitOrder(string);
 
         assertSame(Constant.UserOrder.FIND_REQ, order.getOrder());
+        assertNull(order.getContent());
+
+    }
+
+    /**
+     * 测试: 只有命令码和逗号
+     */
+    @Test
+    public void orderOnlyWithCommaShouldHaveEmptyContent() {
+
+        String string = "006,";
+        Order order = orderService.splitOrder(string);
+
+        assertSame(Constant.UserOrder.GROUP_MSG_REQ, order.getOrder());
         assertEquals("", order.getContent());
 
     }

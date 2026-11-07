@@ -46,16 +46,16 @@ public class ClientServiceBroadcastCommandTest {
 
             ExecutorService executor = Executors.newSingleThreadExecutor();
 
-            try(BufferedReader br = new BufferedReader(new InputStreamReader(clientSide.getInputStream()))) {
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(clientSide.getInputStream()))) {
                 executor.submit(client);
 
-                assertEquals("这里是kiyasu的聊天室, 输入回车继续...",  br.readLine());
+                assertEquals("这里是kiyasu的聊天室, 输入回车继续...", br.readLine());
                 clientSide.getOutputStream().write(
                         "\r\n".getBytes(StandardCharsets.UTF_8));
-                assertEquals("请输入命令: ",  br.readLine());
+                assertEquals("请输入命令: ", br.readLine());
                 clientSide.getOutputStream().write(
                         "006,hello,world\r\n".getBytes(StandardCharsets.UTF_8));
-                assertEquals("000,SUCCESS,消息已加入发送队列",  br.readLine());
+                assertEquals("000,SUCCESS,消息已加入发送队列", br.readLine());
                 assertEquals(1, sendQueue.size());
 
                 Message tmpMsg = sendQueue.poll();
@@ -67,8 +67,8 @@ public class ClientServiceBroadcastCommandTest {
 
 
                 clientSide.getOutputStream().write(
-                        "006\r\n".getBytes(StandardCharsets.UTF_8));
-                assertEquals("000,SUCCESS,消息已加入发送队列",  br.readLine());
+                        "006,\r\n".getBytes(StandardCharsets.UTF_8));
+                assertEquals("000,SUCCESS,消息已加入发送队列", br.readLine());
                 assertEquals(1, sendQueue.size());
 
                 tmpMsg = sendQueue.poll();
@@ -77,6 +77,12 @@ public class ClientServiceBroadcastCommandTest {
                 assertEquals("Alice", tmpMsg.getSrcId());
                 assertNull(tmpMsg.getDstId());
                 assertEquals("", tmpMsg.getMsg());
+
+
+                clientSide.getOutputStream().write(
+                        "006\r\n".getBytes(StandardCharsets.UTF_8));
+                assertEquals("000,FAIL,群发消息请求参数为空", br.readLine());
+                assertTrue(sendQueue.isEmpty());
 
             } finally {
                 client.close();
@@ -104,16 +110,16 @@ public class ClientServiceBroadcastCommandTest {
 
             ExecutorService executor = Executors.newSingleThreadExecutor();
 
-            try(BufferedReader br = new BufferedReader(new InputStreamReader(clientSide.getInputStream()))) {
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(clientSide.getInputStream()))) {
                 executor.submit(client);
 
-                assertEquals("这里是kiyasu的聊天室, 输入回车继续...",  br.readLine());
+                assertEquals("这里是kiyasu的聊天室, 输入回车继续...", br.readLine());
                 clientSide.getOutputStream().write(
                         "\r\n".getBytes(StandardCharsets.UTF_8));
-                assertEquals("请输入命令: ",  br.readLine());
+                assertEquals("请输入命令: ", br.readLine());
                 clientSide.getOutputStream().write(
                         "006,hello,world\r\n".getBytes(StandardCharsets.UTF_8));
-                assertEquals("000,FAIL,用户未登录",  br.readLine());
+                assertEquals("000,FAIL,用户未登录", br.readLine());
                 assertTrue(sendQueue.isEmpty());
 
             } finally {

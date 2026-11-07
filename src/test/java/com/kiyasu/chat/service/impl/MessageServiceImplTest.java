@@ -65,6 +65,7 @@ public class MessageServiceImplTest {
         assertNull(messageService.splitMessage(""));
         assertNull(messageService.splitMessage("Alice"));
         assertNull(messageService.splitMessage("Alice,Bob"));
+        assertNull(messageService.splitMessage(null));
 
     }
 
