@@ -134,7 +134,7 @@ S: 103,SUCCESS,登出成功
 mvn test
 ```
 
-共 50 项自动化测试，**不需要启动 MySQL**：其中 `ServerTest` 的 2 项、`ClientServiceReadTimeoutTest` 的 5 项、`ClientServiceProtocolLineEndingTest` 的 1 项与 `ClientServiceBroadcastCommandTest` 的 2 项测试使用真实的 loopback TCP 连接，需要允许绑定和连接本机临时端口；其余测试使用内存 Socket 或直接调用接口。
+共 51 项自动化测试，**不需要启动 MySQL**：其中 `ServerTest` 的 2 项、`ClientServiceReadTimeoutTest` 的 5 项、`ClientServiceProtocolLineEndingTest` 的 1 项、`ClientServiceBroadcastCommandTest` 的 2 项与 `ClientServiceCredentialLogTest` 的 1 项测试使用真实的 loopback TCP 连接，需要允许绑定和连接本机临时端口；其余测试使用内存 Socket 或直接调用接口。
 
 | 测试类 | 数量 | 覆盖内容 |
 |---|---|---|
@@ -144,6 +144,7 @@ mvn test
 | `MessageSubmissionServiceTest` | 9 | 单聊与群发的满载拒绝、未登录拒绝、身份不匹配、接收者离线、入队成功、日志上下文回归 |
 | `SendMsgServiceTest` | 8 | 慢客户端不阻塞单聊与群发收发、群发扇出且不回显发送者、仅发送者在线边界、满队列拒绝、关闭排空与写线程退出、构造不启动写线程与并发首次发送单写线程 |
 | `ClientServiceBroadcastCommandTest` | 2 | 已登录群发命令入队与 ACK（含逗号、`006,` 空正文与 `006` 缺省参数拒绝）、未登录群发命令拒绝 |
+| `ClientServiceCredentialLogTest` | 1 | 注册/登录参数错误与未知命令日志脱敏回归（不输出明文凭据或原始命令参数） |
 | `ClientServiceReadTimeoutTest` | 5 | 读空闲超时清理、客户端正常断开（EOF）、正常活动保持在线（含 1024 字符上界）、慢速滴灌超时清理、超长输入行清理 |
 | `ClientServiceProtocolLineEndingTest` | 1 | 原始字节验证固定 LF 行尾与 CRLF 请求兼容 |
 | `SendMsgServiceDropLogAggregationTest` | 3 | 首条与每 1000 条汇总，以及恢复、离线、退出时的尾数上报 |

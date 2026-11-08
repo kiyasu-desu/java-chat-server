@@ -112,7 +112,7 @@ accept → 发欢迎语 → 客户端空行 → 命令循环 ─┬→ 003 登�
 
 ## 6. 协议解析语义
 
-- `OrderServiceImpl.splitOrder`：`split(",", 2)`，只对命令码 trim，剩余部分整体保留为 content。空串 / null / 空白命令码返回 null；只有命令码（未出现逗号，如 `004`、`006`）时 `content` 为 `null`，带逗号但后续为空（如 `006,`）时 `content` 为空串 `""`，以此区分缺省参数与空字符串参数；未知命令码返回 `order=null` 的 Order 对象，由 `ClientService` 转为 `000,FAIL,命令解析错误`。
+- `OrderServiceImpl.splitOrder`：`split(",", 2)`，只对命令码 trim，剩余部分整体保留为 content。空串 / null / 空白命令码返回 null；只有命令码（未出现逗号，如 `004`、`006`）时 `content` 为 `null`，带逗号但后续为空（如 `006,`）时 `content` 为空串 `""`，以此区分缺省参数与空字符串参数；未知命令码返回 `order=null` 的 Order 对象，由 `ClientService` 转为 `000,FAIL,命令解析错误`（日志仅记录固定错误文案，不打印 `Order` 或 `content`，防止误输命令码或参数错误时将明文密码写入日志）。
 - `MessageServiceImpl.splitMessage`：对 `null` 输入或 `split(",", 3)` 不足 3 段的输入记录 WARN 并返回 `null`；正文中的后续逗号全部保留；`Alice,Bob,` 会得到空正文消息（字段是否为空由后续业务判断，解析器不校验）。
 
 ## 7. 数据访问
@@ -133,11 +133,12 @@ accept → 发欢迎语 → 客户端空行 → 命令循环 ─┬→ 003 登�
 | 饱和期丢弃日志刷屏 | 丢弃日志按接收者聚合（首条 + 每 1000 条汇总 + 尾数上报） | 尾数在无后续触发点时，统计状态会保留至该接收者下一次转发处理或转发线程退出；换来自洽的丢弃计数与饱和期可读日志 |
 | 发送线程退出 | 停止标志 + Server 中断 | 收到中断即退出，不承诺排空；完整优雅关闭未实现 |
 | 失联连接与慢速/超长输入 | 60 秒读空闲超时 + 首字符后整行读取期限 + 1024 字符单行上限 | 防止无换行超长输入撑爆内存或慢速滴灌绕过 `SO_TIMEOUT` 长期占用连接线程 |
+| 异常命令与凭据日志脱敏 | `ClientService.runOrder` 未知命令与参数错误分支不记录 `order` / `order.getContent()` | 牺牲异常请求的原始参数回显，避免含逗号密码或误输命令码把明文密码写入日志 |
 | PrintWriter 吞异常 | 每次写后 `checkError()` | 检测有延迟（写失败在下一次 checkError 才被发现），但足够驱动清理 |
 
 ## 9. 已验证行为与边界
 
-自动化测试（`mvn test`，50 项，全部不依赖数据库）：
+自动化测试（`mvn test`，51 项，全部不依赖数据库）：
 
 | 测试类 | 数量 | 验证目标 |
 |---|---|---|
@@ -147,6 +148,7 @@ accept → 发欢迎语 → 客户端空行 → 命令循环 ─┬→ 003 登�
 | `MessageSubmissionServiceTest` | 9 | 单聊与群发满载限时拒绝、未登录拒绝、身份不匹配拒绝、单聊离线拒绝、成功恰好入队一次、日志上下文回归 |
 | `SendMsgServiceTest` | 8 | 慢客户端写阻塞时单聊与群发其他用户正常收发；群发扇出且不回显发送者；仅发送者在线边界；满队列拒绝；关闭排空与写线程退出；构造不启动写线程、关闭后不再启动、并发首次发送仅启动单写线程 |
 | `ClientServiceBroadcastCommandTest` | 2 | 已登录 `006` 群发命令入队与 ACK（含逗号、`006,` 空正文与 `006` 缺省参数拒绝）；未登录 `006` 群发命令拒绝（真实 loopback TCP） |
+| `ClientServiceCredentialLogTest` | 1 | 注册/登录参数错误与未知命令日志脱敏回归，验证不记录明文凭据（真实 loopback TCP） |
 | `ClientServiceProtocolLineEndingTest` | 1 | 服务端协议输出固定 LF、原始字节无 `\r`（真实 loopback TCP） |
 | `SendMsgServiceDropLogAggregationTest` | 3 | 丢弃日志按接收者聚合：首条、1000 条汇总、恢复 / 转发线程退出 / 离线尾数 |
 | `ClientServiceReadTimeoutTest` | 5 | 读空闲超时清理；EOF 清理；正常活动与 1024 字符边界保持在线；慢速滴灌无换行超时清理；超长输入行立即清理 |
