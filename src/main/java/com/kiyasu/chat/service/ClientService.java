@@ -16,6 +16,7 @@ import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
@@ -24,6 +25,7 @@ public class ClientService implements AutoCloseable, Runnable {
     private static final int DEFAULT_READ_TIMEOUT_MILLIS = 60_000;      // 默认读超时
     private static final int OUTBOUND_CAPACITY = 256;                   // 输出队列容量
     private static final String POISON = "\u0000";                      // 哨兵值, 用于标记写线程退出
+    private static final int MAX_LINE_LENGTH = 1024;                    // 单行输入最大字符数
 
     private final Socket client;                                        // 客户端套接字
     private final MessageSubmissionService messageSubmissionService;    // 消息发送队列
@@ -37,6 +39,7 @@ public class ClientService implements AutoCloseable, Runnable {
     private final AccountService accountService;
     private final Object writerLock = new Object();                     // 私有锁对象
     private boolean writerStarted = false;                              // 私有锁状态
+    private final int readTimeoutMillis;                                // 读超时时间
 
     public ClientService(Socket client,
                          BlockingQueue<Message> sendQueue,
@@ -49,7 +52,7 @@ public class ClientService implements AutoCloseable, Runnable {
                   BlockingQueue<Message> sendQueue,
                   OnlineRegistryUtil registry,
                   int readTimeoutMillis) throws IOException {
-
+        this.readTimeoutMillis = readTimeoutMillis;
         this.client = client;
         client.setSoTimeout(readTimeoutMillis);
         this.accountService = new AccountService();
@@ -79,13 +82,16 @@ public class ClientService implements AutoCloseable, Runnable {
             if (!send("这里是kiyasu的聊天室, 输入回车继续...")) {
                 return;
             }
-            br.readLine();
+            if (readBoundedLine(br) == null) {
+                log.info("客户端 {} 连接已关闭", client.getRemoteSocketAddress());
+                return;
+            }
             if (!send("请输入命令: ")) {
                 return;
             }
 
             while (true) {
-                String inputLine = br.readLine();
+                String inputLine = readBoundedLine(br);
                 if (inputLine == null) {
                     log.info("客户端 {} 连接已关闭", client.getRemoteSocketAddress());
                     break;
@@ -373,5 +379,36 @@ public class ClientService implements AutoCloseable, Runnable {
 
     private Boolean isLogin() {
         return userId != null;
+    }
+
+    private String readBoundedLine(BufferedReader br) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        client.setSoTimeout(readTimeoutMillis);
+        int tmp = br.read();
+        if (tmp == -1) return null;
+        if (tmp == '\n') return "";
+        long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis);
+        long remainingNanos;
+        do {
+            if (sb.length() > MAX_LINE_LENGTH || (sb.length() == MAX_LINE_LENGTH && tmp != '\r')) {
+                throw new IOException("单行输入长度超过上限: " + MAX_LINE_LENGTH);
+            }
+            sb.append((char) tmp);
+            if (readTimeoutMillis > 0) {
+                remainingNanos = deadlineNanos - System.nanoTime();
+                if (remainingNanos <= 0) {
+                    throw new SocketTimeoutException("客户端读取整行命令超时");
+                } else {
+                    client.setSoTimeout((int) Math.max(1L, TimeUnit.NANOSECONDS.toMillis(remainingNanos)));
+                }
+            }
+            tmp = br.read();
+        } while ('\n' != tmp && -1 != tmp);
+        client.setSoTimeout(readTimeoutMillis);
+        if (sb.charAt(sb.length() - 1) == '\r') {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+
+        return sb.toString();
     }
 }
