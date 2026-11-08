@@ -236,7 +236,7 @@ public class SendMsgServiceTest {
      * 仅发送者自己在线时群发不回显且不抛异常
      */
     @Test
-    public void broadcastWhenOnlySenderOnlineShouldNotEchoOrFail() throws Exception{
+    public void broadcastWhenOnlySenderOnlineShouldNotEchoOrFail() throws Exception {
 
         LinkedBlockingQueue<Message> queue = new LinkedBlockingQueue<>(10);
         OnlineRegistryUtil registry = new OnlineRegistryUtil();
@@ -278,6 +278,68 @@ public class SendMsgServiceTest {
         assertTrue(singleThreadExecutor.awaitTermination(2, TimeUnit.SECONDS));
 
 
+    }
+
+    /**
+     * 构造不应启动写入器
+     */
+    @Test
+    public void constructionShouldNotStartWriter() throws Exception {
+        long base = countWriterThreads();
+
+        OnlineRegistryUtil registry = new OnlineRegistryUtil();
+
+        try (RecordingSocket aliceSocket = new RecordingSocket();
+             ClientService aliceClient = new ClientService(aliceSocket, new LinkedBlockingQueue<>(), registry)) {
+
+            assertEquals(base, countWriterThreads());
+            aliceClient.close();
+            assertFalse(aliceClient.send("after-close"));
+            assertEquals(base, countWriterThreads());
+
+        }
+
+        assertEquals(base, countWriterThreads());
+
+    }
+
+    /**
+     * 并发首次发送应启动单个写入器
+     */
+    @Test
+    public void concurrentFirstSendShouldStartSingleWriter() throws Exception {
+        long base = countWriterThreads();
+
+        CyclicBarrier barrier = new CyclicBarrier(2);
+        ExecutorService executors = Executors.newFixedThreadPool(2);
+        OnlineRegistryUtil registry = new OnlineRegistryUtil();
+
+        try (RecordingSocket aliceSocket = new RecordingSocket();
+             ClientService aliceClient = new ClientService(aliceSocket, new LinkedBlockingQueue<>(), registry)) {
+
+            Future<Boolean> task1 = executors.submit(() -> {
+                barrier.await(1, TimeUnit.SECONDS);
+                return aliceClient.send("task1");
+            });
+            Future<Boolean> task2 = executors.submit(() -> {
+                barrier.await(1, TimeUnit.SECONDS);
+                return aliceClient.send("task2");
+            });
+
+            assertTrue(task1.get(1, TimeUnit.SECONDS));
+            assertTrue(task2.get(1, TimeUnit.SECONDS));
+            assertEquals(base + 1, countWriterThreads());
+
+            aliceClient.close();
+
+            List<String> lines = aliceSocket.getWrittenText().lines().toList();
+            assertEquals(2, lines.size());
+            assertTrue(lines.containsAll(List.of("task1", "task2")));
+
+        } finally {
+            executors.shutdownNow();
+        }
+        assertTrue(executors.awaitTermination(2, TimeUnit.SECONDS));
     }
 
     static long countWriterThreads() {
