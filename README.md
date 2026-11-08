@@ -10,7 +10,7 @@
 - 并发登录防护：同一账号同时只允许一个连接在线
 - 每连接独立写线程 + 有界出站队列，隔离慢客户端，避免阻塞全局转发
 - 共享消息队列有界（1024），满载时快速拒绝
-- 读空闲超时（默认 60 秒）自动清理失联连接
+- 读空闲超时（默认 60 秒）与单行输入限制（最大 1024 字符 + 整行读取期限），自动清理失联、慢速滴灌或超长帧连接
 
 ## 环境要求
 
@@ -123,7 +123,8 @@ S: 103,SUCCESS,登出成功
 | 消息转发线程 | 1 | 从共享消息队列取消息并投递到目标连接 |
 | 共享消息队列 | 1024 | 满载时新消息被拒绝，返回"服务器繁忙" |
 | 每连接出站队列 | 256 | 满载时该条消息被丢弃；丢弃日志按接收者聚合为 WARN |
-| 读空闲超时 | 60 秒 | 超时未收到任何数据即清理连接 |
+| 单行输入上限 | 1024 字符 | 超出上限立即断开连接并清理在线状态（兼容 LF / CRLF） |
+| 读空闲超时 / 整行期限 | 60 秒 | 空闲未收到数据或收到首字符后未在期限内读完一整行即清理连接 |
 
 详细设计、并发语义与取舍见 [docs/design.md](docs/design.md)。
 
@@ -133,7 +134,7 @@ S: 103,SUCCESS,登出成功
 mvn test
 ```
 
-共 48 项自动化测试，**不需要启动 MySQL**：其中 `ServerTest` 的 2 项、`ClientServiceReadTimeoutTest` 的 3 项、`ClientServiceProtocolLineEndingTest` 的 1 项与 `ClientServiceBroadcastCommandTest` 的 2 项测试使用真实的 loopback TCP 连接，需要允许绑定和连接本机临时端口；其余测试使用内存 Socket 或直接调用接口。
+共 50 项自动化测试，**不需要启动 MySQL**：其中 `ServerTest` 的 2 项、`ClientServiceReadTimeoutTest` 的 5 项、`ClientServiceProtocolLineEndingTest` 的 1 项与 `ClientServiceBroadcastCommandTest` 的 2 项测试使用真实的 loopback TCP 连接，需要允许绑定和连接本机临时端口；其余测试使用内存 Socket 或直接调用接口。
 
 | 测试类 | 数量 | 覆盖内容 |
 |---|---|---|
@@ -143,7 +144,7 @@ mvn test
 | `MessageSubmissionServiceTest` | 9 | 单聊与群发的满载拒绝、未登录拒绝、身份不匹配、接收者离线、入队成功、日志上下文回归 |
 | `SendMsgServiceTest` | 8 | 慢客户端不阻塞单聊与群发收发、群发扇出且不回显发送者、仅发送者在线边界、满队列拒绝、关闭排空与写线程退出、构造不启动写线程与并发首次发送单写线程 |
 | `ClientServiceBroadcastCommandTest` | 2 | 已登录群发命令入队与 ACK（含逗号、`006,` 空正文与 `006` 缺省参数拒绝）、未登录群发命令拒绝 |
-| `ClientServiceReadTimeoutTest` | 3 | 读空闲超时清理、客户端正常断开（EOF）、正常活动保持在线 |
+| `ClientServiceReadTimeoutTest` | 5 | 读空闲超时清理、客户端正常断开（EOF）、正常活动保持在线（含 1024 字符上界）、慢速滴灌超时清理、超长输入行清理 |
 | `ClientServiceProtocolLineEndingTest` | 1 | 原始字节验证固定 LF 行尾与 CRLF 请求兼容 |
 | `SendMsgServiceDropLogAggregationTest` | 3 | 首条与每 1000 条汇总，以及恢复、离线、退出时的尾数上报 |
 | `OrderServiceImplTest` | 8 | 命令解析正常（含 `006` 群发命令）、无逗号 `null` 与带逗号空串边界、异常输入 |
