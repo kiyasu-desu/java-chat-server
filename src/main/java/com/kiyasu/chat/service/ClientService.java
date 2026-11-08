@@ -199,7 +199,7 @@ public class ClientService implements AutoCloseable, Runnable {
         Result result = new Result();
 
         if (order == null || order.getOrder() == null) {
-            log.error("命令解析错误: {}", order);
+            log.error("命令解析错误");
             response.setOrderType(Constant.ServerOrder.NO_MEANS_REQ);
             result.setResult(Constant.ResultType.FAIL);
             result.setInfo("命令解析错误");
@@ -215,7 +215,7 @@ public class ClientService implements AutoCloseable, Runnable {
                     } else {
                         String[] params = order.getContent().split(",");
                         if (params.length != 2) {
-                            log.warn("注册请求参数错误: {}", order.getContent());
+                            log.warn("注册请求参数错误");
                             result.setResult(Constant.ResultType.FAIL);
                             result.setInfo("注册请求参数错误");
                         } else {
@@ -239,7 +239,7 @@ public class ClientService implements AutoCloseable, Runnable {
                         } else {
                             String[] params = order.getContent().split(",");
                             if (params.length != 2) {
-                                log.warn("登录请求参数错误: {}", order.getContent());
+                                log.warn("登录请求参数错误");
                                 result.setResult(Constant.ResultType.FAIL);
                                 result.setInfo("登录请求参数错误");
                             } else {
@@ -260,7 +260,7 @@ public class ClientService implements AutoCloseable, Runnable {
                         String id = order.getContent();
 
                         if (id == null || id.isBlank()) {
-                            log.warn("登出请求参数错误: {}", order.getContent());
+                            log.warn("登出请求参数错误");
                             result.setResult(Constant.ResultType.FAIL);
                             result.setInfo("登出请求参数错误");
                         } else if (!userId.equals(id.trim())) {
@@ -297,7 +297,7 @@ public class ClientService implements AutoCloseable, Runnable {
                         MessageService messageService = new MessageServiceImpl();
                         Message message = messageService.splitMessage(order.getContent());
                         if (null == message) {
-                            log.warn("发送消息请求参数错误: {}", order.getContent());
+                            log.warn("发送消息请求参数错误");
                             result.setResult(Constant.ResultType.FAIL);
                             result.setInfo("发送消息请求参数错误");
                         } else {
