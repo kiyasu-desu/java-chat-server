@@ -342,7 +342,7 @@ public class SendMsgServiceTest {
         assertTrue(executors.awaitTermination(2, TimeUnit.SECONDS));
     }
 
-    static long countWriterThreads() {
+    public static long countWriterThreads() {
         Set<Thread> threads = Thread.getAllStackTraces().keySet();
         return threads.stream()
                 .filter(thread -> thread.getName().startsWith("chat-writer-"))
@@ -350,7 +350,7 @@ public class SendMsgServiceTest {
                 .count();
     }
 
-    static boolean awaitUntil(BooleanSupplier condition, long timeoutMs) throws InterruptedException {
+    public static boolean awaitUntil(BooleanSupplier condition, long timeoutMs) throws InterruptedException {
 
         long time = System.nanoTime() + timeoutMs * 1_000_000;
         while (true) {
