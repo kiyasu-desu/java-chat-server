@@ -119,7 +119,7 @@ S: 103,SUCCESS,登出成功
 
 | 组件 | 数量 / 容量 | 说明 |
 |---|---|---|
-| 连接处理线程池 | 固定 30 线程 | 每个连接占用一个线程直至断开 |
+| 连接处理线程池 | 固定 30 线程 | 每个连接占用一个线程直至断开；满载时超额连接立即关闭 |
 | 消息转发线程 | 1 | 从共享消息队列取消息并投递到目标连接 |
 | 共享消息队列 | 1024 | 满载时新消息被拒绝，返回"服务器繁忙" |
 | 每连接出站队列 | 256 | 满载时该条消息被丢弃；丢弃日志按接收者聚合为 WARN |
@@ -133,14 +133,15 @@ S: 103,SUCCESS,登出成功
 mvn test
 ```
 
-共 44 项自动化测试，**不需要启动 MySQL**：其中 `ClientServiceReadTimeoutTest` 的 3 项、`ClientServiceProtocolLineEndingTest` 的 1 项与 `ClientServiceBroadcastCommandTest` 的 2 项测试使用真实的 loopback TCP 连接，需要允许绑定和连接本机临时端口；其余测试使用内存 Socket 或直接调用接口。
+共 48 项自动化测试，**不需要启动 MySQL**：其中 `ServerTest` 的 2 项、`ClientServiceReadTimeoutTest` 的 3 项、`ClientServiceProtocolLineEndingTest` 的 1 项与 `ClientServiceBroadcastCommandTest` 的 2 项测试使用真实的 loopback TCP 连接，需要允许绑定和连接本机临时端口；其余测试使用内存 Socket 或直接调用接口。
 
 | 测试类 | 数量 | 覆盖内容 |
 |---|---|---|
+| `ServerTest` | 2 | 连接准入满载拒绝并立即关闭、不新增写线程、已有连接继续服务、释放容量后恢复接入、单连接初始化异常隔离 |
 | `MessageTest` | 3 | 消息构造器默认单聊与群发静态工厂契约（含逗号与空正文） |
 | `OnlineRegistryUtilTest` | 4 | 并发登录只允许一个连接；旧连接注销不影响新连接；在线连接快照隔离与连接替换后原快照保持 |
 | `MessageSubmissionServiceTest` | 9 | 单聊与群发的满载拒绝、未登录拒绝、身份不匹配、接收者离线、入队成功、日志上下文回归 |
-| `SendMsgServiceTest` | 6 | 慢客户端不阻塞单聊与群发收发、群发扇出且不回显发送者、仅发送者在线边界、满队列拒绝、关闭排空与写线程退出 |
+| `SendMsgServiceTest` | 8 | 慢客户端不阻塞单聊与群发收发、群发扇出且不回显发送者、仅发送者在线边界、满队列拒绝、关闭排空与写线程退出、构造不启动写线程与并发首次发送单写线程 |
 | `ClientServiceBroadcastCommandTest` | 2 | 已登录群发命令入队与 ACK（含逗号、`006,` 空正文与 `006` 缺省参数拒绝）、未登录群发命令拒绝 |
 | `ClientServiceReadTimeoutTest` | 3 | 读空闲超时清理、客户端正常断开（EOF）、正常活动保持在线 |
 | `ClientServiceProtocolLineEndingTest` | 1 | 原始字节验证固定 LF 行尾与 CRLF 请求兼容 |
