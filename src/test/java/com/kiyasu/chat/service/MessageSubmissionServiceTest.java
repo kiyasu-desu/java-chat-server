@@ -173,7 +173,7 @@ public class MessageSubmissionServiceTest {
      * 用户未登录时应请求失败
      */
     @Test
-    public void requestShouldFailWhenUserIsNotLoggedIn() throws Exception {
+    public void requestShouldFailWhenUserIsNotLoggedIn() {
 
         BlockingQueue<Message> messages = new LinkedBlockingQueue<>(1);
         OnlineRegistryUtil registry = new OnlineRegistryUtil();
@@ -223,7 +223,7 @@ public class MessageSubmissionServiceTest {
      * 群发消息源 ID 与会话 ID 不符时拒绝入队
      */
     @Test
-    public void enqueueingShouldRejectedWhenBroadcastMessageSourceIDNotMatchSessionID() throws Exception {
+    public void enqueueingShouldRejectedWhenBroadcastMessageSourceIDNotMatchSessionID() {
 
         BlockingQueue<Message> messages = new LinkedBlockingQueue<>(1);
         OnlineRegistryUtil registry = new OnlineRegistryUtil();
