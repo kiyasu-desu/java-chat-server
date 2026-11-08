@@ -35,6 +35,8 @@ public class ClientService implements AutoCloseable, Runnable {
     private final Thread writer;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AccountService accountService;
+    private final Object writerLock = new Object();                     // 私有锁对象
+    private boolean writerStarted = false;                              // 私有锁状态
 
     public ClientService(Socket client,
                          BlockingQueue<Message> sendQueue,
@@ -56,12 +58,17 @@ public class ClientService implements AutoCloseable, Runnable {
         this.out = new PrintWriter(new OutputStreamWriter(client.getOutputStream()), true);
         this.writer = new Thread(this::writeLoop, "chat-writer-" + client.getRemoteSocketAddress());
         this.writer.setDaemon(true);
-        this.writer.start();
     }
 
     public boolean send(String text) {
-        if (!running) return false;
-        return outbound.offer(text);
+        synchronized (writerLock) {
+            if (closed.get() || !running) return false;
+            if (!writerStarted) {
+                writer.start();
+                writerStarted = true;
+            }
+            return outbound.offer(text);
+        }
     }
 
     @Override
@@ -119,11 +126,15 @@ public class ClientService implements AutoCloseable, Runnable {
      */
     @Override
     public void close() {
-        if (!closed.compareAndSet(false, true)) {
-            return;
+        synchronized (writerLock) {
+            if (!closed.compareAndSet(false, true)) {
+                return;
+            }
+            running = false;
+            if (writerStarted) {
+                outbound.offer(POISON);
+            }
         }
-        running = false;
-        outbound.offer(POISON);
         joinWriter(300);
         try {
             client.close();
